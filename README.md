@@ -1,6 +1,6 @@
 # ns3-bmap
 
-O objetivo deste repositório é:
+Os objetivos desse repositório é:
 
 - Levantar as principais tecnologias de manipulação de mapas/geoprocessamento;
 - Testar as melhores alternativas, extraindo do mapa de interesse (Unicamp) as dimensões dos prédios em metros;
