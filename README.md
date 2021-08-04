@@ -25,7 +25,7 @@ O objetivo deste repositório é:
 
 ### Extract OSM info
 
-- Tools: 
+- **Tools**: 
  - https://www.openstreetmap.org/export#map=15/-22.8224/-47.0617
  - https://www.azavea.com/blog/2015/12/21/tools-for-getting-data-out-of-openstreetmap-and-into-desktop-gis/
  - https://learnosm.org/en/osm-data/getting-data/
@@ -37,23 +37,22 @@ O objetivo deste repositório é:
 
 
 ### SUMO: 
-        - https://sumo.dlr.de/docs/Networks/Import/OpenStreetMap.html
-        - https://www.eclipse.org/sumo/
-    - Buildings Module: https://www.nsnam.org/docs/models/html/buildings.html
-    - NetSimulyzer ns-3 Module: https://github.com/usnistgov/NetSimulyzer-ns3-module#about
-    
+- **SUMO User Documentation**: https://sumo.dlr.de/docs/index.html
+- **Buildings Module**: https://www.nsnam.org/docs/models/html/buildings.html
+- **NetSimulyzer ns-3 Module**: https://github.com/usnistgov/NetSimulyzer-ns3-module#about
+
 
 ## Leafleat 
-	- Leafleat: https://leafletjs.com/
-    - Leafleat e plugins 3D:
-        https://osmbuildings.org/data/
-        https://webkid.io/blog/3d-maps-with-osmbuildings/
+- **Leafleat**: https://leafletjs.com/
+- **Leafleat e plugins 3D**:
+    https://osmbuildings.org/data/
+    https://webkid.io/blog/3d-maps-with-osmbuildings/
 
 ## Mapbox:
-    - Display buildings in 3D: https://docs.mapbox.com/mapbox-gl-js/example/3d-buildings/
-    - Mapbox Streets v8: https://docs.mapbox.com/vector-tiles/reference/mapbox-streets-v8/
-    - Mapping 3D building features in OpenStreetMap: https://blog.mapbox.com/mapping-3d-building-features-in-openstreetmap-7685ee12712a
-    - Building heights in Mapbox Streets: https://blog.mapbox.com/building-heights-in-mapbox-streets-14bc7399a4e8
+- **Display buildings in 3D**: https://docs.mapbox.com/mapbox-gl-js/example/3d-buildings/
+- **Mapbox Streets v8**: https://docs.mapbox.com/vector-tiles/reference/mapbox-streets-v8/
+- **Mapping 3D building features in OpenStreetMap**: https://blog.mapbox.com/mapping-3d-building-features-in-openstreetmap-7685ee12712a
+- **Building heights in Mapbox Streets**: https://blog.mapbox.com/building-heights-in-mapbox-streets-14bc7399a4e8
 
 ## Libs Python:
 - **Geopandas**: https://geopandas.org/
@@ -64,6 +63,6 @@ O objetivo deste repositório é:
 - **Kepler**: https://kepler.gl/
 
 
-## Respostas de fóruns interessantes:
-    - https://forum.openstreetmap.org/viewtopic.php?id=72373
+## Respostas interessantes - Fóruns:
+- https://forum.openstreetmap.org/viewtopic.php?id=72373
 
