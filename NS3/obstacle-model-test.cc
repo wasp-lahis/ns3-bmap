@@ -1,4 +1,6 @@
 /* This script simulates a complex scenario with multiple GWs, EDs and buildings.
+ * - A 3D Obstacle Shadowing Model is use in LoRa Channel
+
  * The metrics of interest for the network of this script are:
  * - Throughput 
  * - Packet Loss Rate (TO DO)
@@ -11,13 +13,21 @@
  * Based on:
  * - https://github.com/GaiaFL/NS-3_LoraWan
  * - https://gitlab.com/serzagit/QoS-802.11ah-NS3/-/blob/master/scratch/test/NodeEntry.cc
+ * - https://github.com/mromanelli9/master-thesis/tree/barichello
  */
 
+
+/* -----------------------------------------------------------------------------
+*			HEADERS
+* ------------------------------------------------------------------------------
+*/
+
+// LoraWAN Module header files
 #include "ns3/log.h"
 #include "ns3/gateway-lora-phy.h"
 #include "ns3/lora-helper.h"
 #include "ns3/mobility-helper.h"
-#include "ns3/forwarder-helper.h"
+#include "ns3/forwarder-helper.h" 
 #include "ns3/network-server-helper.h"
 #include "ns3/periodic-sender-helper.h"
 #include <iostream>
@@ -26,51 +36,25 @@
 #include <ns3/okumura-hata-propagation-loss-model.h>
 #include "ns3/flow-monitor-helper.h"
 #include "ns3/correlated-shadowing-propagation-loss-model.h"
+
+// Box obstacles
 #include "ns3/building-penetration-loss.h"
 #include "ns3/building-allocator.h"
 #include "ns3/buildings-helper.h"
 
+// obstacle polygons model
+#include "ns3/topology.h"
+#include "ns3/obstacle-shadowing-propagation-loss-model.h"
+
+// mobilty
 #include "ns3/mobility-module.h"
-#include "ns3/csv-reader.h"
-#include "ns3/building.h"
-#include "ns3/object-factory.h"
 
-
-
-// CGAL includes - topology
-#include <CGAL/intersections.h>
-// CGAL includes - obstacle
-#include <CGAL/Exact_predicates_exact_constructions_kernel.h>
-#include <CGAL/Ray_2.h>
-#include <CGAL/Point_2.h>
-#include <CGAL/Point_3.h>
-#include <CGAL/Segment_2.h>
-#include <CGAL/Segment_3.h>
-#include <CGAL/Polygon_2.h>
-#include <CGAL/Bbox_2.h>
-#include <CGAL/Cartesian.h>
-#include <CGAL/Range_segment_tree_traits.h>
-#include <CGAL/Range_tree_k.h>
-#include <CGAL/Plane_3.h>
-
-// CGAL types
-typedef CGAL::Exact_predicates_exact_constructions_kernel K;
-typedef K::FT Coord_type;
-typedef CGAL::Ray_2<K> Ray_2;
-typedef CGAL::Point_2<K> Point;
-typedef CGAL::Point_3<K> Point_3;
-typedef CGAL::Segment_2<K> Segment_2;
-typedef CGAL::Segment_3<K> Segment_3;
-typedef CGAL::Polygon_2<K> Polygon_2;
-typedef CGAL::Bbox_2 Bbox_2;
-typedef CGAL::Plane_3<K> Plane_3;
-typedef CGAL::Polygon_2<K>::Edge_const_iterator EdgeIterator;
-
+// namespaces
 using namespace ns3;
 using namespace lorawan;
 using namespace std;
 
-NS_LOG_COMPONENT_DEFINE ("Cenario I");
+NS_LOG_COMPONENT_DEFINE ("lorawan-unicamp-3d");
 
 // -------- Setup Variables and Structures --------
 
@@ -84,16 +68,8 @@ struct spf{
     Time delay;
 };
 
-struct building_bounds{
-    double minx;
-    double miny;
-    double maxx;
-    double maxy;
-};
-
 // Instantiate of data structures
 uint8_t SF_QTD = 6;
-vector<building_bounds> building_bounds_list;
 vector<device> deviceList;
 vector<spf> spreadFList;
 map <uint64_t, int> pacote_sf;
@@ -126,6 +102,14 @@ string buildings_bounds_file = "building_bounds.csv";
 string building_file = "buildings_dimensions.txt";
 string network_file = "network_results.txt";
 
+/* -----------------------------------------------------------------------------
+*			MAIN
+* ------------------------------------------------------------------------------
+*/
+uint32_t m_actualRange;
+uint32_t m_areaOfInterest;
+std::string m_bldgFile;
+std::string m_traceFile;
 
 // -------- Functions --------
 
@@ -196,100 +180,8 @@ void Print(NodeContainer endDevices, NodeContainer gateways,  Ptr<PropagationDel
     Simulator::Schedule(Seconds(interval), &Print, endDevices, gateways, delay, interval);
 }
 
-// https://www.nsnam.org/doxygen/classns3_1_1_csv_reader.html
-void read_building_csv_file(const std::string &filepath){
-
-  CsvReader csv (buildings_bounds_file);
-
-  while (csv.FetchNextRow ()) {
-      // Ignore blank lines
-      if (csv.IsBlankRow ()){
-          cout << "Blank Line!" << endl;
-          continue;
-      }
-
-      // Bounds: minx, miny, maxx, maxy
-      std::vector<double> row_values (4);
-      bool ok = true;
-      for (std::size_t i = 0; i < row_values.size (); ++i) {
-          ok |= csv.GetValue (i, row_values[i]);
-      }
-      
-      if (!ok) {
-        // Handle error, then
-        cout << "Read Line Error!" << endl;
-        continue;
-      }
-      else {
-        building_bounds_list.push_back({
-          row_values[0],  // minx
-          row_values[1],  // miny
-          row_values[2],  // maxx
-          row_values[3]   // maxy
-        });
-      }
-    }  // while FetchNextRow
-    
-    // // Show info
-    // cout << "Total Rows: "<< building_bounds_list.size() << endl;
-    // for ( vector<building_bounds>::iterator i = building_bounds_list.begin(); i!= building_bounds_list.end(); ++i){
-    //       cout << i->minx << ", " << i->miny << ", " << i->maxx << ", " << i->maxy << std::endl;
-    // }
-    
-}
-
 // Simulation Code
-void simulationCode(int nSimulation){
-  
-  // /* Debug
-  //Chamadas de funções da classe com endereços da memória dos componentes, tamanho do pacote e alguns tempos computados (?)
-  //LogComponentEnable("LoraPhy", LOG_LEVEL_ALL);
-  // LogComponentEnable("LoraChannel", LOG_LEVEL_INFO); // tx, rx info
-  //Só chamada de funções da classe EndDevice
-  //LogComponentEnable("EndDeviceLoraPhy", LOG_LEVEL_ALL);
-  //Chamadas de funções com endereços da memórias como parâmetros;
-  //LogComponentEnable("GatewayLoraPhy", LOG_LEVEL_ALL);
-  //Avisa se encontrou interferência, em qual canal, a energia, bem como intervalo de tempo
-  //LogComponentEnable("LoraInterferenceHelper", LOG_LEVEL_ALL);
-  //Chamada de função com endereço e algum ID (?)
-  //LogComponentEnable("LorawanMac", LOG_LEVEL_ALL);
-  //Chamada de funções da classe + frequência do canal atual e tempo de espera pra tal canal
-  //LogComponentEnable("EndDeviceLorawanMac", LOG_LEVEL_ALL);
-  //Chama da funções da classe + frequência, quanto tipos de transmissões faltam, se é mensagem confirmada, (replyDataRate, m_rx1DrOffset e m_dataRate (?)) 
-  //LogComponentEnable("ClassAEndDeviceLorawanMac", LOG_LEVEL_ALL);
-  //Chamada de funções da classe com endereços da memória como parâmetros
-  //LogComponentEnable("GatewayLorawanMac", LOG_LEVEL_ALL);
-  //Chamada de funções da classe com endereços da memória, tempo da mensagem no ar, m_aggregatedDutyCycle(?), tempo atual e quando a próxima transmissão vai ser permitida na sub-banda; 
-  //LogComponentEnable("LogicalLoraChannelHelper", LOG_LEVEL_ALL);
-  //Chamada de funções da classe com endereços da memória
-  //LogComponentEnable("LogicalLoraChannel", LOG_LEVEL_ALL);
-  //Avisa quando cria as camadas PHY e MAC, bem como cada dispositivo e gateway e suas posições
-  //LogComponentEnable("LoraHelper", LOG_LEVEL_ALL);
-  //Chamada de funções da classe com endereços da memória
-  //LogComponentEnable("LoraPhyHelper", LOG_LEVEL_ALL);
-  //Chamada de funções da classe com endereços da memória
-  //LogComponentEnable("LorawanMacHelper", LOG_LEVEL_ALL);
-  //Chamada de funções da classe com endereços da memória e o intervalo de tempo da aplicação criada
-  //LogComponentEnable("PeriodicSenderHelper", LOG_LEVEL_ALL);
-  //Chamada de funções da classe com endereços da memória, avisa do id do dispositivo (evento) e que enviou o pacote
-  //LogComponentEnable("PeriodicSender", LOG_LEVEL_ALL);
-  //Chamada de funções da classe
-  //LogComponentEnable("LorawanMacHeader", LOG_LEVEL_ALL);
-  //Chamada de funções da classe e algumas variáveis (ACK, fpending, foptslen, fcnt)
-  //LogComponentEnable("LoraFrameHeader", LOG_LEVEL_ALL);
-  //Chamada de funções da classe com endereços da memória, avisa a abertura de janela do dispositivo e se encontrou gateway disponível 
-  //LogComponentEnable("NetworkScheduler", LOG_LEVEL_ALL);
-  //id do dispositivo + propagação: txPower (transmissor), rxPower (receptor), distância acho q do gateway, delay da mensagem
-  //LogComponentEnable ("LoraChannel", LOG_LEVEL_INFO);
-  //Funções da classe e endereços dos componentes passados como parâmetros
-  //LogComponentEnable("NetworkServer", LOG_LEVEL_ALL);
-  //Chamada de funções da classe com endereços da memória
-  //LogComponentEnable("NetworkStatus", LOG_LEVEL_ALL);
-  //Chamada de funções da classe com endereços da memória
-  //LogComponentEnable("NetworkController", LOG_LEVEL_ALL);
-  //Pega endereço de pacote e mostra de qual dispositivo foi enviado e se foi recebido pelo gateway
-  //LogComponentEnable("LoraPacketTracker", LOG_LEVEL_ALL);
-  //*/
+void simulationCode(){
 
   // Inicialization
   deviceList.resize(nDevices);
@@ -308,16 +200,19 @@ void simulationCode(int nSimulation){
 
   if (realisticChannelModel){
     // Create the correlated shadowing component
-    Ptr<CorrelatedShadowingPropagationLossModel> shadowing =
-        CreateObject<CorrelatedShadowingPropagationLossModel> ();
+    // Ptr<CorrelatedShadowingPropagationLossModel> shadowing =
+    //     CreateObject<CorrelatedShadowingPropagationLossModel> ();
 
-    // Aggregate shadowing to the logdistance loss
-    loss->SetNext (shadowing);
+    // // Aggregate shadowing to the logdistance loss
+    // loss->SetNext (shadowing);
 
     // Add the effect to the channel propagation loss
-    Ptr<BuildingPenetrationLoss> buildingLoss = CreateObject<BuildingPenetrationLoss> ();
+    // Ptr<BuildingPenetrationLoss> buildingLoss = CreateObject<BuildingPenetrationLoss> ();
+    // shadowing->SetNext (buildingLoss);
 
-    shadowing->SetNext (buildingLoss);
+    Ptr<ObstacleShadowingPropagationLossModel> obstacle3DLoss = CreateObject<ObstacleShadowingPropagationLossModel>();
+    obstacle3DLoss->SetAttribute("Radius", DoubleValue (200));
+    loss->SetNext (obstacle3DLoss);
   }
 
   //Create channel
@@ -335,25 +230,11 @@ void simulationCode(int nSimulation){
   helper.EnablePacketTracking ();
 
   MobilityHelper mobility;
-  std::string mobility_file = "ns2mobility.tcl";
-  
-  // using built-in ns-2 mobility helper
-  // Ns2MobilityHelper sumo_trace(mobility_file);
 
   // random EDs positions distributions
   // see https://www.nsnam.org/wiki/MobilityHelper
   mobility.SetPositionAllocator ("ns3::UniformDiscPositionAllocator", "rho", DoubleValue (radius),
                                       "X", DoubleValue (0.0), "Y", DoubleValue (0.0));
-
-  // especific positions distributions
-  // Ptr<ListPositionAllocator> allocator = CreateObject<ListPositionAllocator> ();
-  // for(uint16_t i = 0; i < nDevices; i++){
-    
-    
-  //   allocator->Add (Vector (0 + i*4, 0 + i*2, 0));
-
-  // }
-  // mobility.SetPositionAllocator(allocator);
 
   // ED does not move
   mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
@@ -390,68 +271,6 @@ void simulationCode(int nSimulation){
   macHelper.SetRegion (LorawanMacHelper::EU);
   helper.Install (phyHelper, macHelper, gateways);
 
-  /**********************
-   *  Handle buildings  *
-   **********************/
-  
- 
-  BuildingContainer bContainer;
-  Ptr<GridBuildingAllocator> gridBuildingAllocator;
-  gridBuildingAllocator = CreateObject<GridBuildingAllocator> ();
-
-  read_building_csv_file(buildings_bounds_file);    
-  building_bounds_list.erase(building_bounds_list.begin());
-  // cout << "Total Rows: "<< building_bounds_list.size() << endl;
-
-  for ( vector<building_bounds>::iterator i = building_bounds_list.begin(); i!= building_bounds_list.end(); ++i){
-     // cout << i->minx << ", " << i->miny << ", " << i->maxx << ", " << i->maxy << std::endl;
-
-    gridBuildingAllocator->SetAttribute ("GridWidth", UintegerValue (1));
-    gridBuildingAllocator->SetAttribute ("LengthX", DoubleValue (i->maxx - i->minx));
-    gridBuildingAllocator->SetAttribute ("LengthY", DoubleValue (((i->maxy - i->miny))));
-    gridBuildingAllocator->SetAttribute ("DeltaX", DoubleValue (0));
-    gridBuildingAllocator->SetAttribute ("DeltaY", DoubleValue (-(i->maxy - i->miny)));
-    gridBuildingAllocator->SetAttribute ("Height", DoubleValue (6)); // dummy
-    gridBuildingAllocator->SetAttribute ("MinX", DoubleValue (i->minx));
-    gridBuildingAllocator->SetAttribute ("MinY", DoubleValue (i->miny));
-    
-    BuildingContainer bContainer_aux;
-
-    if (i == building_bounds_list.begin()){
-        bContainer = gridBuildingAllocator->Create (1);
-    }
-    else{
-      bContainer_aux = gridBuildingAllocator->Create (1);
-      bContainer.Add(bContainer_aux);
-    }
-  }
-
-  BuildingsHelper::Install (endDevices);
-  BuildingsHelper::Install (gateways);
-
-  // Print the buildings
-  if (print){
-    ofstream myfile;
-    myfile.open (building_file);
-    vector<Ptr<Building>>::const_iterator it;
-
-    int j = 1;
-    for (it = bContainer.Begin (); it != bContainer.End (); ++it, ++j){
-        Box boundaries = (*it)->GetBoundaries ();
-        
-        // print building boundaries
-        // cout << "\nboundaries:" << boundaries << "\n" 
-        // << "xMin: " << boundaries.xMin << " yMin:" << boundaries.yMin 
-        // << " xMax: " << boundaries.xMax << " yMax:" << boundaries.yMax
-        // << " zMin: " << boundaries.zMin << ", zMax " << boundaries.zMax << endl;        
-        
-        // write building boundaries in a file
-        myfile << j << "," << boundaries.xMin << "," << boundaries.yMin
-                << "," << boundaries.xMax << "," << boundaries.yMax << "," 
-                << boundaries.zMin << "," << boundaries.zMax << endl;
-    }
-    myfile.close ();
-  }
       
   //spreadFListingFactor
   vector<int> sf = macHelper.SetSpreadingFactorsUp (endDevices, gateways, channel);
@@ -483,7 +302,6 @@ void simulationCode(int nSimulation){
       }
               
       mac->TraceConnectWithoutContext("SentNewPacket", MakeCallback(&PacketTraceDevice));
-
   }
 
   for (NodeContainer::Iterator j = gateways.Begin (); j != gateways.End (); ++j)
@@ -493,7 +311,6 @@ void simulationCode(int nSimulation){
       Ptr<LorawanMac> mac = loraNetDevice->GetMac()->GetObject<LorawanMac>();
       mac->TraceConnectWithoutContext("ReceivedPacket", MakeCallback(&PacketTraceGW));
   }
-
 
   //NetworkServer
   NodeContainer networkServers;
@@ -513,8 +330,8 @@ void simulationCode(int nSimulation){
   // appHelper.SetPeriod (Hours (appPeriodSeconds));
   appHelper.SetPeriod (Seconds (appPeriodSeconds));//
   appHelper.SetPacketSize (payloadSize);
-  Ptr<RandomVariableStream> rv = CreateObjectWithAttributes<UniformRandomVariable> (
-      "Min", DoubleValue (0), "Max", DoubleValue (10));
+  // Ptr<RandomVariableStream> rv = CreateObjectWithAttributes<UniformRandomVariable> (
+  //     "Min", DoubleValue (0), "Max", DoubleValue (10));
   ApplicationContainer appContainer = appHelper.Install (endDevices);
 
   // Start simulation
@@ -577,28 +394,6 @@ void simulationCode(int nSimulation){
     }  
   }
 
-
-  // Get RSSI for each node to GW
-  // see LoraChannel::Send function in lora-channel.cc to understanding:
-  // LogComponentEnable("LoraChannel", LOG_LEVEL_INFO) and GetRxPower() 
-  // for(NodeContainer::Iterator gw = gateways.Begin (); gw != gateways.End (); ++gw){
-  //     uint32_t gwId = (*gw)->GetId(); 
-  //     Ptr<MobilityModel> mobModelG = (*gw)->GetObject<MobilityModel>();
-  //     // Vector3D posgw = mobModelG->GetPosition();
-      
-  //     for (NodeContainer::Iterator node = endDevices.Begin (); node != endDevices.End (); ++node)
-  //     {
-  //       Ptr<MobilityModel> mobModel = (*node)->GetObject<MobilityModel>();
-  //       // Vector3D pos = mobModel->GetPosition();
-  //       double position = mobModel->GetDistanceFrom(mobModelG);  
-  //       uint32_t nodeId = (*node)->GetId();
-      
-  //       std:: cout << "RX power for GW " << gwId << " receive from node "<< nodeId << ": ";
-  //       std:: cout << channel->GetRxPower(14.0,mobModel,mobModelG) << " - distance from GW "
-  //       << position << std::endl ;
-  //     }
-  // }
-
   // Cleaning
   pacote_sf.clear();
   pacote_ds.clear();
@@ -610,37 +405,29 @@ void simulationCode(int nSimulation){
 }
 
 
-int main (int argc, char *argv[]){
+int main (int argc, char *argv[])
+{
+      // Set up logging
+      LogComponentEnable ("lorawan-unicamp-3d", LOG_LEVEL_ALL);
 
-  CommandLine cmd;
-  cmd.AddValue ("nDevices", "Number of end devices to include in the simulation", nDevices);
-  cmd.AddValue ("radius", "The radius of the area to simulate", radius);
-  cmd.AddValue ("simulationTime", "The time for which to simulate", simulationTime);
-  cmd.AddValue ("appPeriod",
-                "The period in seconds to be used by periodically transmitting applications",
-                appPeriodSeconds);
-  cmd.AddValue ("print", "Whether or not to print various informations", print);
-  cmd.AddValue ("nSimulationRepeat", "Number of times to run the simulation", nSimulationRepeat);
-  cmd.Parse (argc, argv);
+      NS_LOG_INFO ("Configure scenario.");
+      m_areaOfInterest = 1000; // meters, radius
+      m_actualRange = 300; 
 
-   // Set up logging
-  LogComponentEnable ("Cenario I", LOG_LEVEL_ALL);
-  
-  for(int n = 0; n < nSimulationRepeat; n++){
+      m_bldgFile = "LA.poly.xml";
+      if (realisticChannelModel)
+      {
+        NS_LOG_INFO ("Loading buildings file \"" << m_bldgFile << "\".");
+        Topology::LoadBuildings (m_bldgFile);
+      }
       
-      // generate a different seed for each simulation 
-      srand(time(0));
-      int seed = rand();
-      RngSeedManager::SetSeed (seed); // Changes seed from default of 1 to seed
-      RngSeedManager::SetRun (7); // Changes run number from default of 1 to 7
-      
-      // all simulation network code 
-      simulationCode(n);
+      // m_traceFile = "LA.ns2mobility.xml";
+      // NS_LOG_INFO ("Configure current mobility mode.");
+      // Nodes positions
+      // Create Ns2MobilityHelper with the specified trace log file as parameter
+      // Ns2MobilityHelper ns2 = Ns2MobilityHelper (m_traceFile);
+      // NS_LOG_INFO ("Loading vehicle (ns2) mobility file \"" << m_traceFile << "\".");      
 
-      // TODO: obtain and calculated metrics
-      // TODO: generate a csv with results
-  }
+      simulationCode();
 
-
-  return 0;
 }
