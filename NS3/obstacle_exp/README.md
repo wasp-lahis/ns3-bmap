@@ -51,4 +51,3 @@ cd $NS3-BASE-DIR
 - CGAL Releases: https://github.com/CGAL/cgal/releases
 - https://garfield001.wordpress.com/2013/04/16/compile-and-link-ns3-program-with-external-library/
 - https://gitlab.com/nsnam/ns-3-dev/-/issues/352
-

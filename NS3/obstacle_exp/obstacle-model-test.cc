@@ -14,6 +14,12 @@
  * - https://github.com/GaiaFL/NS-3_LoraWan
  * - https://gitlab.com/serzagit/QoS-802.11ah-NS3/-/blob/master/scratch/test/NodeEntry.cc
  * - https://github.com/mromanelli9/master-thesis/tree/barichello
+ * 
+ * RUN:
+ * $ cd NS3_BASE_DIR
+ * $ ./waf --run "obstacle-model-test --real=1"
+ * ou
+ * $ ./waf --run "obstacle-model-test --real=0"
  */
 
 
@@ -78,36 +84,28 @@ map <uint64_t, Time> pacote_dr; // receive
 vector<double> distances;
 
 // Network settings
-int nDevices = 50;
+int nDevices = 1;
 int nGateways = 1;
-double radius = 5000;    // Radio coverage
+double radius = 2000;    // Radio coverage
 int payloadSize = 51;   // bytes
-int appPeriodSeconds = 120; // seconds
+int appPeriodSeconds = 2; // seconds
 double regionalFrequency = 868e6; // frequency band EU
 
-// Output control
-bool print = true;
-
 // Simulation settings
-int simulationTime = 1; // hours
+int simulationTime = 60; // sec
 int nSimulationRepeat = 1;
 
 // Channel model
 bool realisticChannelModel = false;
 
-// Input file names
-string buildings_bounds_file = "building_bounds.csv";
-
 // Output file names
-string building_file = "buildings_dimensions.txt";
 string network_file = "network_results.txt";
 
 /* -----------------------------------------------------------------------------
 *			MAIN
 * ------------------------------------------------------------------------------
 */
-uint32_t m_actualRange;
-uint32_t m_areaOfInterest;
+
 std::string m_bldgFile;
 std::string m_traceFile;
 
@@ -175,7 +173,6 @@ void Print(NodeContainer endDevices, NodeContainer gateways,  Ptr<PropagationDel
         }
      }
 
- 
     os.close();
     Simulator::Schedule(Seconds(interval), &Print, endDevices, gateways, delay, interval);
 }
@@ -189,14 +186,20 @@ void simulationCode(){
   distances.resize(SF_QTD);
       
   // Create Propagation Loss
-  Ptr<NakagamiPropagationLossModel> nakagami = CreateObject<NakagamiPropagationLossModel>();
-  nakagami->SetAttribute("m0", DoubleValue(1));
-  nakagami->SetAttribute("m1",DoubleValue(1));
-  nakagami->SetAttribute("m2",DoubleValue(1));
-  Ptr<OkumuraHataPropagationLossModel> loss = CreateObject<OkumuraHataPropagationLossModel>();
-  loss->SetAttribute("Frequency", DoubleValue(regionalFrequency));
-  loss->SetNext(nakagami);
-  loss->Initialize();
+  // Ptr<NakagamiPropagationLossModel> nakagami = CreateObject<NakagamiPropagationLossModel>();
+  // nakagami->SetAttribute("m0", DoubleValue(1));
+  // nakagami->SetAttribute("m1",DoubleValue(1));
+  // nakagami->SetAttribute("m2",DoubleValue(1));
+  // Ptr<OkumuraHataPropagationLossModel> loss = CreateObject<OkumuraHataPropagationLossModel>();
+  // loss->SetAttribute("Frequency", DoubleValue(regionalFrequency));
+  // loss->SetNext(nakagami);
+  // loss->Initialize();
+
+  // Create the lora channel object
+  Ptr<LogDistancePropagationLossModel> loss = CreateObject<LogDistancePropagationLossModel> ();
+  loss->SetPathLossExponent (3.76);
+  loss->SetReference (1, 7.7);
+
 
   if (realisticChannelModel){
     // Create the correlated shadowing component
@@ -210,9 +213,12 @@ void simulationCode(){
     // Ptr<BuildingPenetrationLoss> buildingLoss = CreateObject<BuildingPenetrationLoss> ();
     // shadowing->SetNext (buildingLoss);
 
+    cout << "[INFO] Obstacle Mode is used!" <<endl;
     Ptr<ObstacleShadowingPropagationLossModel> obstacle3DLoss = CreateObject<ObstacleShadowingPropagationLossModel>();
-    obstacle3DLoss->SetAttribute("Radius", DoubleValue (200));
+    obstacle3DLoss->SetAttribute("Radius", DoubleValue (200.0));
     loss->SetNext (obstacle3DLoss);
+
+    
   }
 
   //Create channel
@@ -233,8 +239,16 @@ void simulationCode(){
 
   // random EDs positions distributions
   // see https://www.nsnam.org/wiki/MobilityHelper
-  mobility.SetPositionAllocator ("ns3::UniformDiscPositionAllocator", "rho", DoubleValue (radius),
-                                      "X", DoubleValue (0.0), "Y", DoubleValue (0.0));
+  // mobility.SetPositionAllocator ("ns3::UniformDiscPositionAllocator", "rho", DoubleValue (radius),
+  //                                     "X", DoubleValue (0.0), "Y", DoubleValue (0.0));
+
+  // especific positions distributions
+  Ptr<ListPositionAllocator> allocator = CreateObject<ListPositionAllocator> ();
+  for(uint16_t i = 0; i < nDevices; i++){    
+    allocator->Add (Vector (30,10,0));
+  }
+  mobility.SetPositionAllocator(allocator);
+
 
   // ED does not move
   mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
@@ -249,7 +263,7 @@ void simulationCode(){
   for (NodeContainer::Iterator j = endDevices.Begin (); j != endDevices.End (); ++j){
       Ptr<MobilityModel> m = (*j)->GetObject<MobilityModel> ();
       Vector position = m->GetPosition ();
-      position.z = 1.0;
+      position.z = 1.5;
       //  cout << position <<   endl;
       m->SetPosition (position);
   }
@@ -262,7 +276,7 @@ void simulationCode(){
   NodeContainer gateways;
   gateways.Create (nGateways);
   Ptr<ListPositionAllocator> positionAllocGw = CreateObject<ListPositionAllocator> ();
-  positionAllocGw->Add (Vector (radius/2, radius/2, 10));
+  positionAllocGw->Add (Vector (170, 90, 15));
   mobility.SetPositionAllocator (positionAllocGw);
   mobility.Install(gateways);
 
@@ -272,7 +286,7 @@ void simulationCode(){
   helper.Install (phyHelper, macHelper, gateways);
 
       
-  //spreadFListingFactor
+  // spreadFListingFactor
   vector<int> sf = macHelper.SetSpreadingFactorsUp (endDevices, gateways, channel);
   cout << "\n- Qtd de EDs por SF: \n [ SF7 SF8 SF9 SF10 SF11 SF12 ] = [ ";
   for ( vector<int>::const_iterator i = sf.begin(); i != sf.end(); ++i)
@@ -325,13 +339,12 @@ void simulationCode(){
   forwarderHelper.Install (gateways);
 
   // Time appStopTime = Hours(24);
-  Time appStopTime = Hours (simulationTime);
+  Time appStopTime = Seconds (simulationTime);
   PeriodicSenderHelper appHelper = PeriodicSenderHelper ();
   // appHelper.SetPeriod (Hours (appPeriodSeconds));
   appHelper.SetPeriod (Seconds (appPeriodSeconds));//
   appHelper.SetPacketSize (payloadSize);
-  // Ptr<RandomVariableStream> rv = CreateObjectWithAttributes<UniformRandomVariable> (
-  //     "Min", DoubleValue (0), "Max", DoubleValue (10));
+
   ApplicationContainer appContainer = appHelper.Install (endDevices);
 
   // Start simulation
@@ -344,16 +357,6 @@ void simulationCode(){
   // Pacotes enviados e recebidos
   LoraPacketTracker &tracker = helper.GetPacketTracker ();
   // helper.DoPrintDeviceStatus(endDevices, gateways, "resultados.txt");
-  int iterator = nDevices;
-
-    cout << "\n- Evaluate the performance at PHY level of a specific gateway: \n";
-  for (NodeContainer::Iterator j = gateways.Begin (); j != gateways.End (); ++j){
-      vector <int> output = tracker.CountPhyPacketsPerGw(Seconds(0), appStopTime, iterator);
-      cout << "GwID " << iterator << "\nReceived: " << output.at(1) << "\nInterfered: " << output.at(2)
-      << "\nNoMoreReceivers: " << output.at(3) << "\nUnderSensitivity: " << output.at(4) << "\nLost: " << output.at(5)
-      << "\n" << "\n";
-      iterator += 1;
-  }
 
   cout << "- Evaluate the global performance at MAC level of the whole network: \n";
   string s =  tracker.CountMacPacketsGlobally (Seconds (0), appStopTime);
@@ -394,6 +397,28 @@ void simulationCode(){
     }  
   }
 
+
+  // Get RSSI for each node to GW
+  // see LoraChannel::Send function in lora-channel.cc to understanding:
+  // LogComponentEnable("LoraChannel", LOG_LEVEL_INFO) and GetRxPower() 
+  for(NodeContainer::Iterator gw = gateways.Begin (); gw != gateways.End (); ++gw){
+      uint32_t gwId = (*gw)->GetId(); 
+      Ptr<MobilityModel> mobModelG = (*gw)->GetObject<MobilityModel>();
+      // Vector3D posgw = mobModelG->GetPosition();
+      
+      for (NodeContainer::Iterator node = endDevices.Begin (); node != endDevices.End (); ++node)
+      {
+        Ptr<MobilityModel> mobModel = (*node)->GetObject<MobilityModel>();
+        // Vector3D pos = mobModel->GetPosition();
+        double position = mobModel->GetDistanceFrom(mobModelG);  
+        uint32_t nodeId = (*node)->GetId();
+      
+        std:: cout << "RX power for GW " << gwId << " receive from node "<< nodeId << ": ";
+        std:: cout << channel->GetRxPower(14.0,mobModel,mobModelG) << " - distance from GW "
+        << position << std::endl ;
+      }
+  }
+
   // Cleaning
   pacote_sf.clear();
   pacote_ds.clear();
@@ -407,20 +432,26 @@ void simulationCode(){
 
 int main (int argc, char *argv[])
 {
+
+      CommandLine cmd;
+      cmd.AddValue ("real", "Number of end devices to include in the simulation", realisticChannelModel);
+      cmd.Parse (argc, argv);
+
+      cout << "[OBSTACLE] realisticChannelModel: " << realisticChannelModel << endl;
+     
       // Set up logging
       LogComponentEnable ("lorawan-unicamp-3d", LOG_LEVEL_ALL);
 
-      NS_LOG_INFO ("Configure scenario.");
-      m_areaOfInterest = 1000; // meters, radius
-      m_actualRange = 300; 
+      // Building Dataset
+      // m_bldgFile = "LA-1x1.3Dpoly.xml";
+      m_bldgFile = "Rect_test.xml";
 
-      m_bldgFile = "LA.poly.xml";
       if (realisticChannelModel)
       {
         NS_LOG_INFO ("Loading buildings file \"" << m_bldgFile << "\".");
         Topology::LoadBuildings (m_bldgFile);
       }
-      
+     
       // m_traceFile = "LA.ns2mobility.xml";
       // NS_LOG_INFO ("Configure current mobility mode.");
       // Nodes positions
@@ -428,6 +459,15 @@ int main (int argc, char *argv[])
       // Ns2MobilityHelper ns2 = Ns2MobilityHelper (m_traceFile);
       // NS_LOG_INFO ("Loading vehicle (ns2) mobility file \"" << m_traceFile << "\".");      
 
-      simulationCode();
+      for(int n = 0; n < nSimulationRepeat; n++){
+      
+        // generate a different seed for each simulation 
+        // srand(time(0));
+        // int seed = rand();
+        // RngSeedManager::SetSeed (seed); // Changes seed from default of 1 to seed
+        // RngSeedManager::SetRun (7); // Changes run number from default of 1 to 7
+        simulationCode();
+      }
 
+      return 0;
 }
