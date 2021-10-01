@@ -1,5 +1,5 @@
 /* This script simulates a complex scenario with multiple GWs, EDs and buildings.
- * - A 3D Obstacle Shadowing Model is use in LoRa Channel
+ * - A 3D Obstacle Shadowing Model is used in LoRa Channel
 
  * The metrics of interest for the network of this script are:
  * - Throughput 
@@ -17,9 +17,9 @@
  * 
  * RUN:
  * $ cd NS3_BASE_DIR
- * $ ./waf --run "obstacle-model-test --real=1"
+ * $ ./waf --run "obstacle-model-test --cenario=1"
  * ou
- * $ ./waf --run "obstacle-model-test --real=0"
+ * $ ./waf --run "obstacle-model-test --cenario=2"
  */
 
 
@@ -96,7 +96,7 @@ int simulationTime = 60; // sec
 int nSimulationRepeat = 1;
 
 // Channel model
-bool realisticChannelModel = false;
+int cenario = 0;
 
 // Output file names
 string network_file = "network_results.txt";
@@ -184,24 +184,27 @@ void simulationCode(){
   deviceList.resize(nDevices);
   spreadFList.resize(SF_QTD);
   distances.resize(SF_QTD);
-      
+
+  Ptr<LogDistancePropagationLossModel> logDistLoss;  
+  Ptr<OkumuraHataPropagationLossModel> okumuraloss;
+  Ptr<PropagationLossModel> final_loss;
+
   // Create Propagation Loss
-  // Ptr<NakagamiPropagationLossModel> nakagami = CreateObject<NakagamiPropagationLossModel>();
-  // nakagami->SetAttribute("m0", DoubleValue(1));
-  // nakagami->SetAttribute("m1",DoubleValue(1));
-  // nakagami->SetAttribute("m2",DoubleValue(1));
-  // Ptr<OkumuraHataPropagationLossModel> loss = CreateObject<OkumuraHataPropagationLossModel>();
-  // loss->SetAttribute("Frequency", DoubleValue(regionalFrequency));
-  // loss->SetNext(nakagami);
-  // loss->Initialize();
+  // PropagationLossModel final_loss;
+  if (cenario == 1){
+    // Create the lora channel object
+    logDistLoss = CreateObject<LogDistancePropagationLossModel> ();
+    logDistLoss->SetPathLossExponent (3.76);
+    logDistLoss->SetReference (1, 7.7);
 
-  // Create the lora channel object
-  Ptr<LogDistancePropagationLossModel> loss = CreateObject<LogDistancePropagationLossModel> ();
-  loss->SetPathLossExponent (3.76);
-  loss->SetReference (1, 7.7);
+    final_loss = logDistLoss;
+  }
 
+  if (cenario == 2){
 
-  if (realisticChannelModel){
+    logDistLoss = CreateObject<LogDistancePropagationLossModel> ();
+    logDistLoss->SetPathLossExponent (3.76);
+    logDistLoss->SetReference (1, 7.7);
     // Create the correlated shadowing component
     // Ptr<CorrelatedShadowingPropagationLossModel> shadowing =
     //     CreateObject<CorrelatedShadowingPropagationLossModel> ();
@@ -215,15 +218,27 @@ void simulationCode(){
 
     cout << "[INFO] Obstacle Mode is used!" <<endl;
     Ptr<ObstacleShadowingPropagationLossModel> obstacle3DLoss = CreateObject<ObstacleShadowingPropagationLossModel>();
-    obstacle3DLoss->SetAttribute("Radius", DoubleValue (200.0));
-    loss->SetNext (obstacle3DLoss);
+    obstacle3DLoss->SetAttribute("Radius", DoubleValue (1000.0));
+    logDistLoss->SetNext (obstacle3DLoss);
 
-    
+    final_loss = logDistLoss;
+  }
+
+  if (cenario == 3){
+    Ptr<NakagamiPropagationLossModel> nakagami = CreateObject<NakagamiPropagationLossModel>();
+    nakagami->SetAttribute("m0", DoubleValue(1));
+    nakagami->SetAttribute("m1",DoubleValue(1));
+    nakagami->SetAttribute("m2",DoubleValue(1));
+    Ptr<OkumuraHataPropagationLossModel> okumuraloss = CreateObject<OkumuraHataPropagationLossModel>();
+    okumuraloss->SetAttribute("Frequency", DoubleValue(regionalFrequency));
+    okumuraloss->SetNext(nakagami);
+    okumuraloss->Initialize();
+    final_loss = okumuraloss;
   }
 
   //Create channel
   Ptr<PropagationDelayModel> delay = CreateObject<ConstantSpeedPropagationDelayModel> ();
-  Ptr<LoraChannel> channel = CreateObject<LoraChannel> (loss, delay);
+  Ptr<LoraChannel> channel = CreateObject<LoraChannel> (final_loss, delay);
 
   //Helpers
   // Create the LoraPhyHelper
@@ -245,7 +260,7 @@ void simulationCode(){
   // especific positions distributions
   Ptr<ListPositionAllocator> allocator = CreateObject<ListPositionAllocator> ();
   for(uint16_t i = 0; i < nDevices; i++){    
-    allocator->Add (Vector (30,10,0));
+    allocator->Add (Vector (40,50,0));
   }
   mobility.SetPositionAllocator(allocator);
 
@@ -264,7 +279,6 @@ void simulationCode(){
       Ptr<MobilityModel> m = (*j)->GetObject<MobilityModel> ();
       Vector position = m->GetPosition ();
       position.z = 1.5;
-      //  cout << position <<   endl;
       m->SetPosition (position);
   }
       
@@ -276,7 +290,7 @@ void simulationCode(){
   NodeContainer gateways;
   gateways.Create (nGateways);
   Ptr<ListPositionAllocator> positionAllocGw = CreateObject<ListPositionAllocator> ();
-  positionAllocGw->Add (Vector (170, 90, 15));
+  positionAllocGw->Add (Vector (90, 50, 4));
   mobility.SetPositionAllocator (positionAllocGw);
   mobility.Install(gateways);
 
@@ -434,10 +448,10 @@ int main (int argc, char *argv[])
 {
 
       CommandLine cmd;
-      cmd.AddValue ("real", "Number of end devices to include in the simulation", realisticChannelModel);
+      cmd.AddValue ("cenario", "Number of end devices to include in the simulation", cenario);
       cmd.Parse (argc, argv);
 
-      cout << "[OBSTACLE] realisticChannelModel: " << realisticChannelModel << endl;
+      cout << "[OBSTACLE] cenario: " << cenario << endl;
      
       // Set up logging
       LogComponentEnable ("lorawan-unicamp-3d", LOG_LEVEL_ALL);
@@ -446,7 +460,7 @@ int main (int argc, char *argv[])
       // m_bldgFile = "LA-1x1.3Dpoly.xml";
       m_bldgFile = "Rect_test.xml";
 
-      if (realisticChannelModel)
+      if (cenario == 2)
       {
         NS_LOG_INFO ("Loading buildings file \"" << m_bldgFile << "\".");
         Topology::LoadBuildings (m_bldgFile);
