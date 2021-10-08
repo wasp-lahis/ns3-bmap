@@ -20,6 +20,8 @@
  * $ ./waf --run "obstacle-model-test --cenario=1"
  * ou
  * $ ./waf --run "obstacle-model-test --cenario=2"
+ * ou
+ * $ ./waf --run "obstacle-model-test --cenario=3"
  */
 
 
@@ -225,14 +227,15 @@ void simulationCode(){
   }
 
   if (cenario == 3){
-    Ptr<NakagamiPropagationLossModel> nakagami = CreateObject<NakagamiPropagationLossModel>();
-    nakagami->SetAttribute("m0", DoubleValue(1));
-    nakagami->SetAttribute("m1",DoubleValue(1));
-    nakagami->SetAttribute("m2",DoubleValue(1));
+    // Ptr<NakagamiPropagationLossModel> nakagami = CreateObject<NakagamiPropagationLossModel>();
+    // nakagami->SetAttribute("m0", DoubleValue(1));
+    // nakagami->SetAttribute("m1",DoubleValue(1));
+    // nakagami->SetAttribute("m2",DoubleValue(1));
+    // final_loss = nakagami;
+    
+    // okumuraloss->SetNext(nakagami);
     Ptr<OkumuraHataPropagationLossModel> okumuraloss = CreateObject<OkumuraHataPropagationLossModel>();
     okumuraloss->SetAttribute("Frequency", DoubleValue(regionalFrequency));
-    okumuraloss->SetNext(nakagami);
-    okumuraloss->Initialize();
     final_loss = okumuraloss;
   }
 
