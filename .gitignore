@@ -133,5 +133,9 @@ dmypy.json
 *.png
 *.jpeg
 
+# notebook
+*.ipynb_checkpoints
+.ipynb_checkpoints
+
 # dataset folder
 Local_Authority_Districts_(December_2017)_Boundaries_in_Great_Britain/
