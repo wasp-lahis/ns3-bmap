@@ -294,9 +294,11 @@ void runSimulation(){
     // final_loss = nakagami;
     
     // okumuraloss->SetNext(nakagami);
-    Ptr<OkumuraHataPropagationLossModel> okumuraloss = CreateObject<OkumuraHataPropagationLossModel>();
-    okumuraloss->SetAttribute("Frequency", DoubleValue(regionalFrequency));
-    final_loss = okumuraloss;
+    Ptr<OkumuraHataPropagationLossModel> okumuraLoss = CreateObject<OkumuraHataPropagationLossModel>();
+    okumuraLoss->SetAttribute("Frequency", DoubleValue(regionalFrequency));
+    okumuraLoss->SetAttribute("Environment", EnumValue (SubUrbanEnvironment));
+    okumuraLoss->SetAttribute("CitySize", EnumValue (SmallCity));
+    final_loss = okumuraLoss;
   }
 
   //Create channel
