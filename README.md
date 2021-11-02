@@ -5,9 +5,9 @@ Various codes, files and datasets for LoRa/LoRaWAN Simulations.
 ```
 .
 ├── NS3
-|    ├── buildings_exp
-|	 ├── datasets 
-|    └── obstacle_exp
+|   ├── buildings_exp
+|	├── datasets 
+|   └── obstacle_exp
 ├── SUMO.md
 └── LEVANTAMENTO_MAPAS.md	
 ```
