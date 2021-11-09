@@ -14,6 +14,6 @@ Various codes, files and datasets for LoRa/LoRaWAN Simulations.
 ```
 * **_NS3_**: main folder. Its has code experiments and datasets.
 * **_SUMO_**: this file contains some useful links and commands for [**sumo lib**](https://sumo.dlr.de/docs/index.html).
-* **_LEVANTAMENTO_MAPAS_**: this file contains a survey on the main map libs and some links of map 2d/3D theory.
+* **_LEVANTAMENTO_MAPAS_**: this file contains a survey on the main map libs and some links of 2D/3D map theory.
 
 
