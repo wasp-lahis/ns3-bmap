@@ -42,7 +42,7 @@ cd NS3_BASE_DIR
 onde:
 
 * **_--exp_name_**: é o nome do experimento;
-* **_--channel_cenario=1_**: é o cenário de propagação do canal LoRa:
+* **_--channel_cenario_**: é o cenário de propagação do canal LoRa:
 	* (1) Log Distance
 	* (2) Log Distance + Obstacle Model
 	* (3) Okumura-Hata
