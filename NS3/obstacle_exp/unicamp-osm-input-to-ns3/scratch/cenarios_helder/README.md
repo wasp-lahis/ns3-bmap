@@ -7,9 +7,9 @@ Gateway LoRa/LoRaWAN com Dispositivos IoT no SmartCampus***, é necessário segu
 
 Para conseguir executar a simulação, siga os passos:
 
-- Configurar a FREQ regional do módulo LoRaWAN para 915 MHZ, conforme descrito em
-- Configurar modelo de obstáculo, descrito em
-- Colocar os datasets de entrada (***rssi_pos_dataset.csv*** e ***predios_unicamp_dataset.xml***) no diretório base do NS-3. Os datasets estão disponíveis em ;
+- Configurar a **FREQ regional** do módulo LoRaWAN para 915 MHZ, conforme descrito em [**+info**](https://github.com/wasp-lahis/ns3-bmap/tree/main/NS3/lorawan-module-classes);
+- Configurar **modelo de obstáculo**, descrito em [**+info**](https://github.com/wasp-lahis/ns3-bmap/tree/main/NS3/obstacle_exp/obstacle-module);
+- Colocar os datasets de entrada (***rssi_pos_dataset.csv*** e ***predios_unicamp_dataset.xml***) no diretório base do NS-3. Os datasets estão disponíveis em [**+info**](https://github.com/wasp-lahis/ns3-bmap/tree/main/NS3/obstacle_exp/unicamp-osm-input-to-ns3);
 - Criar estrutura de pastas para armazenar os resultados dos diferentes modelos de propagação:
 
 ```shell
@@ -43,9 +43,9 @@ onde:
 
 * **_--exp_name_**: é o nome do experimento;
 * **_--channel_cenario=1_**: é o cenário de propagação do canal LoRa:
-	* 1. Log Distance
-	* 2. Log Distance + Obstacle Model
-	* 3. Okumura-Hata
+	* (1) Log Distance
+	* (2) Log Distance + Obstacle Model
+	* (3) Okumura-Hata
 * **_--simu_repeat_**: quantidade de vezes que a simualação é repetida
 
 

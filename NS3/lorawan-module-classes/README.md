@@ -11,7 +11,7 @@ lorawan-mac-helper.h
 lora-phy-helper-phy.cc
 gateway-lora-phy.cc (debug)
 ```
-Pelos respectivos arquivos desse diretório. Essas classes foram baseadas na especificação ***RP002-1.0.3 LoRaWAN® Regional Parameters 2021*** também presente nesse diretório.
+Pelos respectivos arquivos desse diretório (model/ ou helper/ do módulo LoRaWAN). Essas classes foram baseadas na especificação ***RP002-1.0.3 LoRaWAN® Regional Parameters 2021*** também presente nesse diretório.
 
 
 ## TX power
