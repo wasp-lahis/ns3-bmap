@@ -9,7 +9,7 @@ Para conseguir executar a simulação, siga os passos:
 
 - Configurar a **FREQ regional** do módulo LoRaWAN para 915 MHZ, conforme descrito em [**+info**](https://github.com/wasp-lahis/ns3-bmap/tree/main/NS3/lorawan-module-classes);
 - Configurar **modelo de obstáculo**, descrito em [**+info**](https://github.com/wasp-lahis/ns3-bmap/tree/main/NS3/obstacle_exp/obstacle-module);
-- Colocar os datasets de entrada (***rssi_pos_dataset.csv*** e ***predios_unicamp_dataset.xml***) no diretório base do NS-3. Os datasets estão disponíveis em [**+info**](https://github.com/wasp-lahis/ns3-bmap/tree/main/NS3/obstacle_exp/unicamp-osm-input-to-ns3);
+- Colocar os datasets de entrada (***rssi_pos_dataset.csv*** e ***predios_unicamp_dataset.xml***) e código da simualação (***simulation-helder-cenarios.cc***) no diretório base do NS-3. Os datasets estão disponíveis em [**+info**](https://github.com/wasp-lahis/ns3-bmap/tree/main/NS3/obstacle_exp/unicamp-osm-input-to-ns3);
 - Criar estrutura de pastas para armazenar os resultados dos diferentes modelos de propagação:
 
 ```shell
