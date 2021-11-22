@@ -74,6 +74,7 @@ struct spf{
 };
 
 struct unicamp_rssi{
+    int id;
     double rssi;
     double x;
     double y;
@@ -82,8 +83,8 @@ struct unicamp_rssi{
 
 
 // Instantiate of data structures
-uint8_t SF_QTD = 6; // EU 868 MHz
-// uint8_t SF_QTD = 6; // AU 915 MHz
+// uint8_t SF_QTD = 6; // EU 868 MHz
+uint8_t SF_QTD = 6; // AU 915 MHz
 
 vector<device> deviceList;
 vector<spf> spreadFList;
@@ -101,19 +102,19 @@ int nGateways = 1;
 int payloadSize = 20;   // bytes
 int appPeriodSeconds = 5; // seconds
 
-// double regionalFrequency = 868e6; // frequency band EU 868 MHz
+uint8_t txEndDevice = 20; // Dbm
 double regionalFrequency = 915e6; // frequency band AU 915 MHz
+// double regionalFrequency = 868e6; // frequency band EU 868 MHz
 
 // Simulation settings
 int channel_cenario = 0; // channel model cenario
 // int simulationTime = 24 * 7; // hour
-int simulationTime = 1230; // sec
+int simulationTime = 735; // 148 msg * 5 seg 
 int nSimulationRepeat = 0;
-
 
 // Input dataset file names
 string rssi_pos_dataset = "rssi_pos_dataset.csv"; // RSSI positions dataset
-string building_dataset = "predios_unicamp_dataset.xml"; // Unicamp buildings dataset
+string building_dataset = "predios_unicamp_dataset_final.xml"; // Unicamp buildings dataset
 
 // Output file names
 string exp_name = ""; // experiment name
@@ -162,10 +163,9 @@ void ChangeNodePosition(NodeContainer endDevices, double interval ){
 
   Ptr<MobilityModel> node_mobility = endDevices.Get(0)->GetObject<MobilityModel>();
   node_mobility->SetPosition(Vector (i->x, i->y, i->z));
-  cout << "mob->GetPosition(): " << node_mobility->GetPosition() << endl;
-  cout << "mob_teste->GetVelocity(): " <<  node_mobility->GetVelocity() << endl;
+  // cout << "mob->GetPosition(): " << node_mobility->GetPosition() << endl;
+  // cout << "mob_teste->GetVelocity(): " <<  node_mobility->GetVelocity() << endl;
   
-
   Simulator::Schedule(Seconds(interval), &ChangeNodePosition, endDevices, interval); // call every 5sec
 }
 
@@ -177,20 +177,18 @@ void GetGWRSSI(NodeContainer endDevices, NodeContainer gateways,Ptr<LoraChannel>
   for(NodeContainer::Iterator gw = gateways.Begin (); gw != gateways.End (); ++gw){
       uint32_t gwId = (*gw)->GetId(); 
       Ptr<MobilityModel> mobModelG = (*gw)->GetObject<MobilityModel>();
-      // Vector3D posgw = mobModelG->GetPosition();
       
       for (NodeContainer::Iterator node = endDevices.Begin (); node != endDevices.End (); ++node){
         Ptr<MobilityModel> mobModel = (*node)->GetObject<MobilityModel>();
-        // Vector3D pos = mobModel->GetPosition();
         double position = mobModel->GetDistanceFrom(mobModelG);  
         uint32_t nodeId = (*node)->GetId();
       
-        std:: cout << "\nRX power for GW " << gwId << " receive from node "<< nodeId << ": ";
-        std:: cout << channel->GetRxPower(20, mobModel, mobModelG) << " - distance from GW "
-        << position << std::endl ;
+        // std:: cout << "\nRX power for GW " << gwId << " receive from node "<< nodeId << ": ";
+        // std:: cout << channel->GetRxPower(20, mobModel, mobModelG) << " - distance from GW "
+        // << position << std::endl ;
 
         vector<unicamp_rssi>::iterator i = unicamp_rssi_dataset.begin();
-        os_rssi_file << gwId << "," << nodeId << "," << channel->GetRxPower(20, mobModel, mobModelG) << "," <<  i->rssi << "," << position << "\n" ; 
+        os_rssi_file <<  i->id << "," << gwId << "," << nodeId << "," << channel->GetRxPower(txEndDevice, mobModel, mobModelG) << "," <<  i->rssi << "," << position << "\n" ; 
       }
   } 
   os_rssi_file.close();
@@ -262,13 +260,15 @@ void read_rssi_dataset(const std::string &filepath){
           continue;
       }
 
-      // colunms: rssi,	x, y e z
+      // colunms: id, rssi,	x, y e z
+      int id;
       double rssi, x, y, z;
       
-      bool ok = csv.GetValue (0, rssi);
-      ok |= csv.GetValue (1, x);
-      ok |= csv.GetValue (2, y);
-      ok |= csv.GetValue (3, z);
+      bool ok = csv.GetValue (0, id);
+      ok |= csv.GetValue (1, rssi);
+      ok |= csv.GetValue (2, x);
+      ok |= csv.GetValue (3, y);
+      ok |= csv.GetValue (4, z);
       
       if (!ok) {
         // Handle error, then
@@ -277,6 +277,7 @@ void read_rssi_dataset(const std::string &filepath){
       }
       else {
         unicamp_rssi_dataset.push_back({
+          id,
           rssi,  
           x,  
           y,  
@@ -288,12 +289,10 @@ void read_rssi_dataset(const std::string &filepath){
     // delete first row
     // unicamp_rssi_dataset.erase(unicamp_rssi_dataset.begin());
     
-    // Show info
+    //Show info
     // cout << "Total Rows: "<< unicamp_rssi_dataset.size() << endl;
-    // int aux = 0;
     // for ( vector<unicamp_rssi>::iterator i = unicamp_rssi_dataset.begin(); i!= unicamp_rssi_dataset.end(); ++i){
-    //       cout << "aux:" << aux << " " << i->rssi << ", " << i->x << ", " << i->y << ", " << i->z << std::endl;
-    //       aux++;
+    //       cout << "id: " << i->id << " " << i->rssi << ", " << i->x << ", " << i->y << ", " << i->z << std::endl;
     // }
     
 }
@@ -302,7 +301,7 @@ void read_rssi_dataset(const std::string &filepath){
 // Simulation Code
 LoraPacketTracker& runSimulation(){
 
-  // Inicialization
+  // Structs Inicialization
   deviceList.resize(nDevices);
   spreadFList.resize(SF_QTD);
   distances.resize(SF_QTD);
@@ -316,16 +315,22 @@ LoraPacketTracker& runSimulation(){
   if (channel_cenario == 1){
     // Create the lora channel object
     logDistLoss = CreateObject<LogDistancePropagationLossModel> ();
-    logDistLoss->SetPathLossExponent (3.976); // 915 Mhz, h = 1.5m, R=1m
-    logDistLoss->SetReference (1.0, 19.749);
+    logDistLoss->SetPathLossExponent (3.2); // 915 Mhz, h = 50m, R=1m
+    logDistLoss->SetReference (1.0, 15.61);    
+    // logDistLoss->SetPathLossExponent (3.902); // 915 Mhz, h = 6.124, R=1m
+    // logDistLoss->SetReference (1.0, 10.96);
+    // logDistLoss->SetPathLossExponent (3.976); // 915 Mhz, h = 1.5m, R=1m
+    // logDistLoss->SetReference (1.0, 19.749);
+
     final_loss = logDistLoss;
   }
   else if (channel_cenario == 2){
     logDistLoss = CreateObject<LogDistancePropagationLossModel> ();
-    logDistLoss->SetPathLossExponent (3.976); // 915 Mhz, h = 1.5m, R=1m
-    logDistLoss->SetReference (1.0, 19.749);
+    logDistLoss->SetPathLossExponent (3.2); // 915 Mhz, h = 50m, R=1m
+    logDistLoss->SetReference (1.0, 15.61); 
 
-    // Loading Building Dataset    
+    // Loading Building Dataset
+    cout << "[INFO] Obstacle Mode is used!" <<endl;    
     Topology::LoadBuildings (building_dataset);
     Ptr<ObstacleShadowingPropagationLossModel> obstacle3DLoss = CreateObject<ObstacleShadowingPropagationLossModel>();
     obstacle3DLoss->SetAttribute("Radius", DoubleValue (1000.0));
@@ -383,13 +388,6 @@ LoraPacketTracker& runSimulation(){
   mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel"); // ED does not move 
   mobility.Install (endDevices);
 
-  // Ptr<ConstantVelocityMobilityModel> cvMob = endDevices.Get(0)->GetObject<ConstantVelocityMobilityModel>();
-  // Vector m_position = cvMob->GetPosition();
-  // Vector m_speed = cvMob->GetVelocity();
-  // cout << "m_position: " << m_position << endl;
-  // cout << "m_speed: " <<  m_speed << endl;
-
-
   phyHelper.SetDeviceType (LoraPhyHelper::ED);
   macHelper.SetDeviceType (LorawanMacHelper::ED_A);
   macHelper.SetRegion(LorawanMacHelper::Australia);
@@ -399,7 +397,9 @@ LoraPacketTracker& runSimulation(){
   NodeContainer gateways;
   gateways.Create (nGateways);
   Ptr<ListPositionAllocator> positionAllocGw = CreateObject<ListPositionAllocator> ();
-  positionAllocGw->Add (Vector (2873.000, 2125.000, 4.624)); // centroid do Museu
+  positionAllocGw->Add (Vector (2873.000, 2125.000, 50));    // z - altura antena + altura museu + elevacao terreno 52,651
+  // positionAllocGw->Add (Vector (2873.000, 2125.000, 6.124)); // z - altura antena + altura museu
+  // positionAllocGw->Add (Vector (2873.000, 2125.000, 4.624)); // centroid do Museu
   mobility.SetPositionAllocator (positionAllocGw);
   mobility.Install(gateways);
 
@@ -415,7 +415,8 @@ LoraPacketTracker& runSimulation(){
 
   // Set SF manually based on position and RX power - AU 915 MHz
   vector<double> distribution(6, 0); // só estou usando do SF7 - SF12
-  distribution[0] = 1; // distribution[0] - DR5 - S7
+  // distribution[0] = 1; // distribution[0] - DR5 - S7
+  distribution[3] = 1; // distribution[3] - DR2 - S10 = 125khz
   vector<int> sf = macHelper.SetSpreadingFactorsAuGivenDistribution (endDevices, gateways, distribution);
 
   // Print ED distribution by SF
@@ -482,6 +483,7 @@ LoraPacketTracker& runSimulation(){
 
   ApplicationContainer appContainer = appHelper.Install (endDevices);
 
+  
   // Start simulation
   Simulator::Stop (appStopTime);
   // Simulator::Schedule(Seconds(0.00), &Print, endDevices, gateways, delay, 10.0);
@@ -554,7 +556,7 @@ void getSimulationResults(LoraPacketTracker& tracker){
   cout << "count_send_pkts: "   << count_send_pkts   << std::endl ;
   cout << "count_receiv_pkts: " << count_receiv_pkts <<  std::endl ;
 
-  // Cleaning
+  // Structs Cleaning
   pacote_sf.clear();
   pacote_ds.clear();
   pacote_dr.clear();
