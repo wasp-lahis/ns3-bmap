@@ -63,13 +63,16 @@ struct spf{
 };
 
 struct unicamp_trash_bins{
-    int index;
     double id;
     string name;
     double x;
     double y;
     double z;
     double elevation;
+    double lat;
+    double lng;
+    double delta; // Elevacao do predio - elevacao media da regiao do mapa
+    double elev_min;
 };
 
 // Instantiate of data structures
@@ -89,7 +92,7 @@ vector<unicamp_trash_bins> unicamp_trash_bins_dataset;
 int nDevices = 0; // sera sobrescrito
 int nGateways = 1;
 int payloadSize = 7;   // bytes: id - 2 bytes, level - 4 bytes, batery - 1 byte
-Time appPeriod = Hours(24); // h
+Time appPeriod = Hours(0.5); // h 24
 
 uint8_t txEndDevice = 20; // Dbm
 double regionalFrequency = 915e6; // frequency band AU 915 MHz
@@ -105,6 +108,7 @@ string nodes_dataset_input = "coletores_pos_dataset_elev.csv"; //  Nodes positio
 // Output file names
 string exp_name = ""; // experiment name
 string output_results_path = "";
+string rssi_result_file = "";
 string network_result_file = "";
 string per_result_file = "";
 
@@ -192,6 +196,29 @@ void Print(NodeContainer endDevices, NodeContainer gateways,  Ptr<PropagationDel
     Simulator::Schedule(Seconds(interval), &Print, endDevices, gateways, delay, interval);
 }
 
+void GetGWRSSI(NodeContainer endDevices, NodeContainer gateways,Ptr<LoraChannel> channel){
+  ofstream os_rssi_file;
+  string logFile = output_results_path + rssi_result_file;
+  os_rssi_file.open (logFile.c_str (), std::ofstream::out | std::ofstream::app);
+
+  for(NodeContainer::Iterator gw = gateways.Begin (); gw != gateways.End (); ++gw){
+      uint32_t gwId = (*gw)->GetId(); 
+      Ptr<MobilityModel> mobModelG = (*gw)->GetObject<MobilityModel>();
+      
+      for (NodeContainer::Iterator node = endDevices.Begin (); node != endDevices.End (); ++node){
+        Ptr<MobilityModel> mobModel = (*node)->GetObject<MobilityModel>();
+        double position = mobModel->GetDistanceFrom(mobModelG);  
+        uint32_t nodeId = (*node)->GetId();
+      
+        // std:: cout << "\nRX power for GW " << gwId << " receive from node "<< nodeId << ": ";
+        // std:: cout << channel->GetRxPower(20, mobModel, mobModelG) << " - distance from GW "
+        // << position << std::endl ;
+
+        os_rssi_file << gwId << "," << nodeId << "," << channel->GetRxPower(txEndDevice, mobModel, mobModelG) << "," <<  position << "\n" ; 
+      }
+  } 
+  os_rssi_file.close();
+}
 
 // https://www.nsnam.org/doxygen/classns3_1_1_csv_reader.html
 void read_nodes_dataset(const std::string &filepath){
@@ -205,18 +232,20 @@ void read_nodes_dataset(const std::string &filepath){
           continue;
       }
 
-      // colunms: index, id, name, x, y, z e elevation
-      int index;
+      // colunms: id, name, x, y, z e elevation
       string name;
-      double id, x, y, z, elevation;
+      double id, x, y, z, elevation, lat, lng, delta, elev_min;
       
-      bool ok = csv.GetValue (0, index);
-      ok |= csv.GetValue (1, id);
-      ok |= csv.GetValue (2, name);
-      ok |= csv.GetValue (3, x);
-      ok |= csv.GetValue (4, y);
-      ok |= csv.GetValue (5, z);
-      ok |= csv.GetValue (6, elevation);
+      bool ok = csv.GetValue (0, id);
+      ok |= csv.GetValue (1, name);
+      ok |= csv.GetValue (2, x);
+      ok |= csv.GetValue (3, y);
+      ok |= csv.GetValue (4, z);
+      ok |= csv.GetValue (5, elevation);
+      ok |= csv.GetValue (6, lat);
+      ok |= csv.GetValue (7, lng);
+      ok |= csv.GetValue (8, delta);
+      ok |= csv.GetValue (9, elev_min);
       
       if (!ok) {
         // Handle error, then
@@ -225,13 +254,16 @@ void read_nodes_dataset(const std::string &filepath){
       }
       else {
         unicamp_trash_bins_dataset.push_back({
-          index,  
           id,  
           name,  
           x,  
           y,  
           z,
-          elevation   
+          elevation,
+          lat,
+          lng,
+          delta,
+          elev_min   
         });
       }
     }  // while FetchNextRow
@@ -240,10 +272,12 @@ void read_nodes_dataset(const std::string &filepath){
     unicamp_trash_bins_dataset.erase(unicamp_trash_bins_dataset.begin());
     
     // Show info
-    // cout << "Total Rows: "<< unicamp_trash_bins_dataset.size() << endl;
-    // for ( vector<unicamp_trash_bins>::iterator i = unicamp_trash_bins_dataset.begin(); i!= unicamp_trash_bins_dataset.end(); ++i){
-    //       cout << i->index << ", " << i->id << ", " << i->name << ", " << i->x << ", " << i->y << ", " << i->z << ", " << i->elevation<< std::endl;
-    // }
+    int aux = 0;
+    cout << "Total Rows: "<< unicamp_trash_bins_dataset.size() << endl;
+    for ( vector<unicamp_trash_bins>::iterator i = unicamp_trash_bins_dataset.begin(); i!= unicamp_trash_bins_dataset.end(); ++i){
+          cout << aux<<", "<<i->id << ", " << i->name << ", " << i->x << ", " << i->y << ", " << i->z << ", " << i->elevation << ", " << i->delta<< ", " << i->elev_min<< std::endl;
+          aux++;
+    }
     
 }
 
@@ -284,8 +318,8 @@ LoraPacketTracker& runSimulation(){
   // positioning nodes     
   Ptr<ListPositionAllocator> allocator = CreateObject<ListPositionAllocator> ();
   for ( vector<unicamp_trash_bins>::iterator i = unicamp_trash_bins_dataset.begin(); i!= unicamp_trash_bins_dataset.end(); ++i){
-    // cout <<"[DEBUG]: " << i->x << "," << i->y << "," << (i->z + i->elevation) << endl;
-    allocator->Add (Vector (i->x, i->y, (i->z)));
+    cout <<"[DEBUG]: " << i->x << "," << i->y << "," << (i->z + i->elev_min) << endl;
+    allocator->Add (Vector (i->x, i->y, (i->z + i->elev_min)));
   }
 
   MobilityHelper mobility; 
@@ -303,7 +337,8 @@ LoraPacketTracker& runSimulation(){
   NodeContainer gateways;
   gateways.Create (nGateways);
   Ptr<ListPositionAllocator> positionAllocGw = CreateObject<ListPositionAllocator> ();
-  positionAllocGw->Add (Vector (1694.975, 2141.471, (1.5)));    // z - altura antena + elevacao museu
+  positionAllocGw->Add (Vector (1694.975, 2141.471, (1.5 + 43.41880713641183)));    // z - altura antena + (elevacao museu - elevacao do mapa)
+  // positionAllocGw->Add (Vector (1694.975, 2141.471, 1.5 ));    // z - altura antena 
   mobility.SetPositionAllocator (positionAllocGw);
   mobility.Install(gateways);
 
@@ -315,13 +350,13 @@ LoraPacketTracker& runSimulation(){
 
       
   // Set SF automatically based on position and RX power
-  // vector<int> sf = macHelper.SetSpreadingFactorsUp (endDevices, gateways, channel);
+  vector<int> sf = macHelper.SetSpreadingFactorsUp (endDevices, gateways, channel);
 
   // Set SF manually based on position and RX power - AU 915 MHz
-  vector<double> distribution(6, 0); // só estou usando do SF7 - SF12
+  // vector<double> distribution(6, 0); // só estou usando do SF7 - SF12
   // // distribution[0] = 1; // distribution[0] - DR5 - S7
-  distribution[3] = 1; // distribution[3] - DR2 - S10 = 125khz
-  vector<int> sf = macHelper.SetSpreadingFactorsAuGivenDistribution (endDevices, gateways, distribution);
+  // distribution[3] = 1; // distribution[3] - DR2 - S10 = 125khz
+  // vector<int> sf = macHelper.SetSpreadingFactorsAuGivenDistribution (endDevices, gateways, distribution);
 
   // Print ED distribution by SF
   cout << "\n- Qtd de EDs por SF:  [ SF7 SF8 SF9 SF10 SF11 SF12 ] = [ ";
@@ -392,21 +427,8 @@ LoraPacketTracker& runSimulation(){
   Simulator::Run ();
   Simulator::Destroy ();
 
-
-  for(NodeContainer::Iterator gw = gateways.Begin (); gw != gateways.End (); ++gw){
-      uint32_t gwId = (*gw)->GetId(); 
-      Ptr<MobilityModel> mobModelG = (*gw)->GetObject<MobilityModel>();
-      
-      for (NodeContainer::Iterator node = endDevices.Begin (); node != endDevices.End (); ++node){
-        Ptr<MobilityModel> mobModel = (*node)->GetObject<MobilityModel>();
-        double position = mobModel->GetDistanceFrom(mobModelG);  
-        uint32_t nodeId = (*node)->GetId();
-      
-        std:: cout << "RX power for GW " << gwId << " receive from node "<< nodeId << ": ";
-        std:: cout << channel->GetRxPower(txEndDevice, mobModel, mobModelG) << " - distance from GW "
-        << position << std::endl ;
-      }
-  }
+  // GET RX POWER
+  GetGWRSSI(endDevices, gateways,channel);
 
   // Pacotes enviados e recebidos
   return helper.GetPacketTracker ();
@@ -435,17 +457,21 @@ void getSimulationResults(LoraPacketTracker& tracker){
   while ( getline(ss, item, ' ')) {
     splittedStrings.push_back(item);
   }
+
+  //pdr: https://www.sciencedirect.com/topics/computer-science/packet-delivery-ratio
   double sent =  stod(splittedStrings[0]);
   double receiv = stod(splittedStrings[1]);
   double PER = ( sent - receiv )/receiv;
+  double PDR = receiv/sent;
   cout <<  "Nº of Pkts Sent and Received: " << sent << ' ' << receiv << "\n";
   cout << "Packet error rate: " << PER << "\n";
+  cout << "Packet delivery rate: " << PDR << "\n";
 
-  // ofstream os_per_file;
-  // string logFile = output_results_path + per_result_file;
-  // os_per_file.open (logFile.c_str (), std::ofstream::out | std::ofstream::app);
-  // os_per_file << sent << "," << receiv << "," << PER << "\n";
-  // os_per_file.close();
+  ofstream os_per_file;
+  string logFile = output_results_path + per_result_file;
+  os_per_file.open (logFile.c_str (), std::ofstream::out | std::ofstream::app);
+  os_per_file << sent << "," << receiv << "," << PER << "," << PDR << "\n";
+  os_per_file.close();
   
   // // Somatorio de delays por per SF (?)
   // for(auto i = pacote_dr.begin(); i != pacote_dr.end(); i++){
@@ -495,6 +521,7 @@ int main (int argc, char *argv[])
 
       output_results_path = "./simulation_results/";
       network_result_file = "network_results_" + exp_name + ".txt";
+      rssi_result_file = "rssi_results_" + exp_name + ".txt";
       per_result_file = "PER_results_" + exp_name + ".txt";
 
       for(int n = 0; n < nSimulationRepeat; n++){
@@ -512,3 +539,4 @@ int main (int argc, char *argv[])
 
       return 0;
 }
+
