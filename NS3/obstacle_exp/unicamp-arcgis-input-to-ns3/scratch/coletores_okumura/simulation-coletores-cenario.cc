@@ -125,22 +125,22 @@ int count_receiv_pkts = 0;
 
 // Count Sent Packet per SF
 void PacketTraceDevice(Ptr<Packet const> pacote){
-    // uint32_t id =  Simulator::GetContext ();
-    // pacote_sf.insert({pacote->GetUid(), deviceList[id].SF});
-    // Time sendTime = Simulator::Now ();
-    // pacote_ds.insert({pacote->GetUid(), sendTime});
-    // spreadFList[deviceList[id].SF].S++;   
+    uint32_t id =  Simulator::GetContext ();
+    pacote_sf.insert({pacote->GetUid(), deviceList[id].SF});
+    Time sendTime = Simulator::Now ();
+    pacote_ds.insert({pacote->GetUid(), sendTime});
+    spreadFList[deviceList[id].SF].S++;   
     count_send_pkts = count_send_pkts +1;
 }
 
 // Count Received Packet per SF
 void PacketTraceGW(Ptr<Packet const> pacote){
-    // u_int64_t pkid = pacote->GetUid();
-    // int sf = pacote_sf.at(pkid);
-    // Time receivedTime = Simulator :: Now ();
-    // Time sent = pacote_ds.at(pkid);
-    // pacote_dr.insert({pkid, receivedTime - sent});
-    // spreadFList[sf].R++;
+    u_int64_t pkid = pacote->GetUid();
+    int sf = pacote_sf.at(pkid);
+    Time receivedTime = Simulator :: Now ();
+    Time sent = pacote_ds.at(pkid);
+    pacote_dr.insert({pkid, receivedTime - sent});
+    spreadFList[sf].R++;
     count_receiv_pkts = count_receiv_pkts + 1;
 }
 
@@ -283,7 +283,11 @@ void read_nodes_dataset(const std::string &filepath){
 
 // Simulation Code
 LoraPacketTracker& runSimulation(){
-
+  //load nodes dataset  
+  read_nodes_dataset(nodes_dataset_input); 
+  NodeContainer endDevices;
+  nDevices = unicamp_trash_bins_dataset.size();
+  
   // Structs Inicialization
   deviceList.resize(nDevices);
   spreadFList.resize(SF_QTD);
@@ -309,11 +313,9 @@ LoraPacketTracker& runSimulation(){
   LoraHelper helper = LoraHelper ();
   helper.EnablePacketTracking ();
 
-  //load nodes dataset  
-  read_nodes_dataset(nodes_dataset_input); 
-  NodeContainer endDevices;
-  nDevices = unicamp_trash_bins_dataset.size();
+  // Create devices
   endDevices.Create (nDevices);
+
   
   // positioning nodes     
   Ptr<ListPositionAllocator> allocator = CreateObject<ListPositionAllocator> ();
@@ -369,24 +371,24 @@ LoraPacketTracker& runSimulation(){
   for (NodeContainer::Iterator j = endDevices.Begin (); j != endDevices.End (); ++j)
   {
       Ptr<Node> node = *j;
-      // uint32_t id =  node->GetId();
+      uint32_t id =  node->GetId();
       Ptr<LoraNetDevice> loraNetDevice = node->GetDevice (0)->GetObject<LoraNetDevice> ();
       Ptr<ClassAEndDeviceLorawanMac> mac = loraNetDevice->GetMac ()->GetObject<ClassAEndDeviceLorawanMac> ();
-      // uint8_t DR =  mac->GetDataRate();
+      uint8_t DR =  mac->GetDataRate();
       // cout << "[DEBUG]: " <<  mac->GetDataRate() << "\n";
-      // if (unsigned (DR) == 5){
-      //     deviceList[id].SF = 5;
-      // }else if (unsigned(DR) == 4){
-      //     deviceList[id].SF = 4;
-      // }else if (unsigned(DR) == 3){
-      //     deviceList[id].SF = 3;
-      // }else if (unsigned(DR) == 2){
-          // deviceList[id].SF = 2;
-      // }else if (unsigned(DR) == 1){
-      //     deviceList[id].SF = 1;
-      // }else{
-      //     deviceList[id].SF = 0;
-      // }
+      if (unsigned (DR) == 5){
+          deviceList[id].SF = 5;
+      }else if (unsigned(DR) == 4){
+          deviceList[id].SF = 4;
+      }else if (unsigned(DR) == 3){
+          deviceList[id].SF = 3;
+      }else if (unsigned(DR) == 2){
+          deviceList[id].SF = 2;
+      }else if (unsigned(DR) == 1){
+          deviceList[id].SF = 1;
+      }else{
+          deviceList[id].SF = 0;
+      }
       mac->TraceConnectWithoutContext("SentNewPacket", MakeCallback(&PacketTraceDevice));
   }
 
@@ -474,24 +476,24 @@ void getSimulationResults(LoraPacketTracker& tracker){
   os_per_file.close();
   
   // // Somatorio de delays por per SF (?)
-  // for(auto i = pacote_dr.begin(); i != pacote_dr.end(); i++){
-  //   int SF = pacote_sf[i->first];
-  //   spreadFList[SF].delay += i->second;
-  // }
+  for(auto i = pacote_dr.begin(); i != pacote_dr.end(); i++){
+    int SF = pacote_sf[i->first];
+    spreadFList[SF].delay += i->second;
+  }
 
-  // cout << "\n- Nº of Pkts sent, received, Average delay per SF & Delay per SF:\n";
-  // for ( vector<spf>::iterator i = spreadFList.begin(); i!= spreadFList.end(); ++i){
-  //   if(i->delay != Time(0)){
-  //       cout << i->S << " " << i->R <<  " " << (i->delay/i->R).GetMilliSeconds()  << " " << i->delay/i->R  << " " << i->delay << "\n";
-  //     i->S = i->R  = 0;
-  //     i->delay = Time(0);
-  //   }
-  //   else{  
-  //       cout << i->S << " " << i->R << "\n";
-  //     i->S = i->R = 0;
-  //     i->delay = Time(0);
-  //   }  
-  // }
+  cout << "\n- Nº of Pkts sent, received, Average delay per SF & Delay per SF:\n";
+  for ( vector<spf>::iterator i = spreadFList.begin(); i!= spreadFList.end(); ++i){
+    if(i->delay != Time(0)){
+      cout << i->S << " " << i->R <<  " " << (i->delay/i->R).GetMilliSeconds()  << " " << i->delay/i->R  << " " << i->delay << "\n";
+      i->S = i->R  = 0;
+      i->delay = Time(0);
+    }
+    else{  
+      cout << i->S << " " << i->R << "\n";
+      i->S = i->R = 0;
+      i->delay = Time(0);
+    }  
+  }
 
 
   cout << "count_send_pkts: "   << count_send_pkts   << std::endl ;
