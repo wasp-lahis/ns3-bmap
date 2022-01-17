@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<head>
+   <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.5/leaflet.css" />
+   <script src="http://cdn.leafletjs.com/leaflet-0.5/leaflet.js"></script>
+   
+   
+   
+   
+
+
+<style>
+
+#map {
+  position:absolute;
+  top:0;
+  bottom:0;
+  right:0;
+  left:0;
+}
+
+</style>
+</head>
+<body>
+
+        <div id="map" style="width: 960px; height: 900px"></div>
+
+<script>
+
+
+
+var map = L.map('map').setView([-22.820788, -47.065773], 16);
+
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+}).addTo(map);
+
+
+
+var popup = L.popup();
+
+function latLngPop(e) {
+    popup.setLatLng(e.latlng)
+         .setContent("Latitude: " + e.latlng.lat.toFixed(6) +
+                     "<br>Longitude: " + e.latlng.lng.toFixed(6))
+         .openOn(map);
+}
+
+map.on('click', latLngPop);
+
+
+
+</script>
+
+</body>
