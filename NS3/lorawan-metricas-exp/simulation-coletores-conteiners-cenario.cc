@@ -26,7 +26,7 @@
  *  
  * RUN example:
  * $ cd NS3_BASE_DIR
- * $ ./waf --run "simulation-coletores-cenario --exp_name=coletores_unicamp --simu_repeat=1"
+ * $ ./waf --run "simulation-coletores-conteiners-cenario --exp_name=coletores_conteiners_unicamp --simu_repeat=1"
  */
 
 
@@ -75,7 +75,7 @@ struct spf{
     Time delay;
 };
 
-struct unicamp_trash_bins{
+struct unicamp_trash_bins{ // pilhas e baterias
     double id;
     string name;
     double x;
@@ -86,6 +86,13 @@ struct unicamp_trash_bins{
     double lng;
     double delta; // Elevacao do predio - elevacao media da regiao do mapa
     double elev_min;
+};
+
+
+struct unicamp_conteiner_bins{ // conteiners n reciclaveis
+    double x;
+    double y;
+    double z;
 };
 
 // Instantiate of data structures
@@ -100,12 +107,13 @@ vector<double> distances;
 
 // dataset structs
 vector<unicamp_trash_bins> unicamp_trash_bins_dataset;
+vector<unicamp_conteiner_bins> unicamp_conteiner_bins_dataset;
 
 // Network settings
 int nDevices = 0; // sera sobrescrito
 int nGateways = 1;
 int payloadSize = 11;   // bytes: id - 6 bytes, level - 4 bytes, batery - 1 byte
-Time appPeriod = Hours(6); // 4 x no dias
+Time appPeriod = Hours(1); // 4 x no dias
 // Time appPeriod = Seconds(10); 
 
 uint8_t txEndDevice = 20; // Dbm
@@ -113,11 +121,12 @@ double regionalFrequency = 915e6; // frequency band AU 915 MHz
 // double regionalFrequency = 868e6; // frequency band EU 868 MHz
 
 // Simulation settings
-Time simulationTime = Hours(24 * 1); // ano 
+Time simulationTime = Hours(24 * 1); //   
 int nSimulationRepeat = 0;
 
 // Input dataset file names
-string nodes_dataset_input = "coletores_pos_dataset_elev.csv"; //  Nodes positions dataset
+string nodes_trash_dataset = "coletores_pos_dataset_elev.csv"; //  Nodes positions dataset
+string nodes_conteiner_dataset = "conteiners_pos_dataset.csv"; //  Nodes positions dataset
 
 // Output file names
 string exp_name = ""; // experiment name
@@ -260,7 +269,7 @@ void GetGWRSSI(NodeContainer endDevices, NodeContainer gateways,Ptr<LoraChannel>
 }
 
 // https://www.nsnam.org/doxygen/classns3_1_1_csv_reader.html
-void read_nodes_dataset(const std::string &filepath){
+void read_trash_bin_dataset(const std::string &filepath){
 
   CsvReader csv (filepath);
 
@@ -320,6 +329,52 @@ void read_nodes_dataset(const std::string &filepath){
     
 }
 
+void read_conteiner_bin_dataset(const std::string &filepath){
+
+  CsvReader csv (filepath);
+
+  while (csv.FetchNextRow ()) {
+      // Ignore blank lines
+      if (csv.IsBlankRow ()){
+          cout << "Blank Line!" << endl;
+          continue;
+      }
+
+      // colunms: id, name, x, y, z e elevation
+      string name;
+      double x, y, z;
+      
+      bool ok = csv.GetValue (0, x);
+      ok |= csv.GetValue (1, y);
+      ok |= csv.GetValue (2, z);
+      
+      if (!ok) {
+        // Handle error, then
+        // cout << "Read Line Error!" << endl;
+        continue;
+      }
+      else {
+        unicamp_conteiner_bins_dataset.push_back({
+          x,  
+          y,  
+          z
+        });
+      }
+    }  // while FetchNextRow
+    
+    // delete first row
+    // unicamp_conteiner_bins_dataset.erase(unicamp_conteiner_bins_dataset.begin());
+    
+    // Show info
+    int aux = 0;
+    cout << "Total Rows: "<< unicamp_conteiner_bins_dataset.size() << endl;
+    for ( vector<unicamp_conteiner_bins>::iterator i = unicamp_conteiner_bins_dataset.begin(); i!= unicamp_conteiner_bins_dataset.end(); ++i){
+          cout << i->x << ", " << i->y << ", " << i->z << std::endl;
+          aux++;
+    }
+    
+}
+
 // Simulation Code
 LoraPacketTracker& runSimulation(){
   // Channel Propagation Model
@@ -344,7 +399,11 @@ LoraPacketTracker& runSimulation(){
   for ( vector<unicamp_trash_bins>::iterator i = unicamp_trash_bins_dataset.begin(); i!= unicamp_trash_bins_dataset.end(); ++i){
     allocator->Add (Vector (i->x, i->y, (i->z)));
   }
-
+  for ( vector<unicamp_conteiner_bins>::iterator i = unicamp_conteiner_bins_dataset.begin(); i!= unicamp_conteiner_bins_dataset.end(); ++i){
+    allocator->Add (Vector (i->x, i->y, (i->z)));
+  }
+  cout << "Number of Position Allocated: " << allocator->GetSize() << endl;
+  
   MobilityHelper mobility; 
   mobility.SetPositionAllocator(allocator);
   mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel"); // ED does not move 
@@ -357,7 +416,7 @@ LoraPacketTracker& runSimulation(){
   for (NodeContainer::Iterator j = endDevices.Begin (); j != endDevices.End (); ++j){
       Ptr<MobilityModel> m = (*j)->GetObject<MobilityModel> ();
       Vector position = m->GetPosition ();
-      position.z = 1.0;
+      position.z = 1.5;
       m->SetPosition (position);
   }
 
@@ -587,9 +646,13 @@ int main (int argc, char *argv[])
         cout << "\n[SEED "<< n << "]: " << seed << "\n";  
         
         //load nodes dataset  
-        read_nodes_dataset(nodes_dataset_input); 
-        nDevices = unicamp_trash_bins_dataset.size();
-
+        read_trash_bin_dataset(nodes_trash_dataset); 
+        read_conteiner_bin_dataset(nodes_conteiner_dataset);
+        nDevices = unicamp_trash_bins_dataset.size() + unicamp_conteiner_bins_dataset.size();
+        cout << "unicamp_trash_bins_dataset:" << unicamp_trash_bins_dataset.size() << endl;
+        cout << "unicamp_conteiner_bins_dataset:" << unicamp_conteiner_bins_dataset.size() << endl;
+        cout << "nDevices:" << nDevices << endl;
+     
         initialize_structs(); // Structs Inicialization
         LoraPacketTracker& tracker = runSimulation(); // run simulation
         getSimulationResults(tracker); // calculate results
