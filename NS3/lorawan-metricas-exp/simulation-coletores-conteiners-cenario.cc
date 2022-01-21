@@ -113,7 +113,7 @@ vector<unicamp_conteiner_bins> unicamp_conteiner_bins_dataset;
 int nDevices = 0; // sera sobrescrito
 int nGateways = 1;
 int payloadSize = 11;   // bytes: id - 6 bytes, level - 4 bytes, batery - 1 byte
-Time appPeriod = Hours(1); // 4 x no dias
+Time appPeriod = Hours(6); // 4 x no dias
 // Time appPeriod = Seconds(10); 
 
 uint8_t txEndDevice = 20; // Dbm
@@ -121,12 +121,12 @@ double regionalFrequency = 915e6; // frequency band AU 915 MHz
 // double regionalFrequency = 868e6; // frequency band EU 868 MHz
 
 // Simulation settings
-Time simulationTime = Hours(24 * 1); //   
+Time simulationTime = Hours(24 * 7); //   
 int nSimulationRepeat = 0;
 
 // Input dataset file names
 string nodes_trash_dataset = "coletores_pos_dataset_elev.csv"; //  Nodes positions dataset
-string nodes_conteiner_dataset = "conteiners_pos_dataset.csv"; //  Nodes positions dataset
+string nodes_conteiner_dataset = "conteiners_dataset.csv"; //  Nodes positions dataset
 
 // Output file names
 string exp_name = ""; // experiment name
@@ -163,6 +163,7 @@ void cleaning_structs(){
   spreadFList.clear();
   distances.clear();
   unicamp_trash_bins_dataset.clear();
+  unicamp_conteiner_bins_dataset.clear();
 }
 
 // Count Sent Packet per SF
@@ -507,13 +508,14 @@ LoraPacketTracker& runSimulation(){
   LoraRadioEnergyModelHelper radioEnergyHelper;
 
   // configure energy source
+  // values based on SX1272/73 datasheet - Table 6 Power Consumption Specification
   basicSourceHelper.Set ("BasicEnergySourceInitialEnergyJ", DoubleValue (10000)); // Energy in J
-  basicSourceHelper.Set ("BasicEnergySupplyVoltageV", DoubleValue (3.3));
-  radioEnergyHelper.Set ("StandbyCurrentA", DoubleValue (0.0014));
-  radioEnergyHelper.Set ("TxCurrentA", DoubleValue (0.028));
-  radioEnergyHelper.Set ("SleepCurrentA", DoubleValue (0.0000015));
-  radioEnergyHelper.Set ("RxCurrentA", DoubleValue (0.0112));
-  radioEnergyHelper.SetTxCurrentModel ("ns3::ConstantLoraTxCurrentModel","TxCurrent", DoubleValue (0.028));
+  basicSourceHelper.Set ("BasicEnergySupplyVoltageV", DoubleValue (3.3)); // Volts
+  radioEnergyHelper.Set ("StandbyCurrentA", DoubleValue (0.0014)); // Ampere
+  radioEnergyHelper.Set ("TxCurrentA", DoubleValue (0.028)); // Ampere
+  radioEnergyHelper.Set ("SleepCurrentA", DoubleValue (0.0000015)); // Ampere
+  radioEnergyHelper.Set ("RxCurrentA", DoubleValue (0.0112)); // Ampere
+  radioEnergyHelper.SetTxCurrentModel ("ns3::ConstantLoraTxCurrentModel","TxCurrent", DoubleValue (0.028)); // Ampere
 
   // install source on EDs' nodes
   EnergySourceContainer sources = basicSourceHelper.Install (endDevices);
