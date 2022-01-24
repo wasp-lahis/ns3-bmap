@@ -121,7 +121,7 @@ double regionalFrequency = 915e6; // frequency band AU 915 MHz
 // double regionalFrequency = 868e6; // frequency band EU 868 MHz
 
 // Simulation settings
-Time simulationTime = Hours(24 * 7); //   
+Time simulationTime = Hours(24); //   
 int nSimulationRepeat = 0;
 
 // Input dataset file names
@@ -496,10 +496,15 @@ LoraPacketTracker& runSimulation(){
   ForwarderHelper forwarderHelper;
   forwarderHelper.Install (gateways);
 
+  //Creation of two packet interval -> 6h for batteries and 1h containers 
   Time appStopTime = simulationTime;
-  PeriodicSenderHelper appHelper = PeriodicSenderHelper ();
-  appHelper.SetPeriod (appPeriod);
-  appHelper.SetPacketSize (payloadSize);
+  PeriodicSenderHelper appHelperP = PeriodicSenderHelper ();
+  appHelperP.SetPeriod (Hours(6));
+  appHelperP.SetPacketSize (payloadSize);
+
+  PeriodicSenderHelper appHelperC = PeriodicSenderHelper ();
+  appHelperC.SetPeriod (Hours(1));
+  appHelperC.SetPacketSize (payloadSize);
 
   /************************
    * Install Energy Model *
@@ -527,7 +532,34 @@ LoraPacketTracker& runSimulation(){
   Ptr<RandomVariableStream> rv = CreateObjectWithAttributes<UniformRandomVariable> (
       "Min", DoubleValue (0), "Max", DoubleValue (10));
 
-  ApplicationContainer appContainer = appHelper.Install (endDevices);
+  //Separation of nodes into baterries and containers
+  NodeContainer endDevices_pilhas;
+  NodeContainer endDevices_conteiners;
+  
+  for(size_t i = 0; i < unicamp_trash_bins_dataset.size(); i++){
+    endDevices_pilhas.Add(endDevices.Get(i));
+  }
+  for(size_t i = unicamp_trash_bins_dataset.size(); i < endDevices.GetN(); i++){
+    endDevices_conteiners.Add(endDevices.Get(i));
+  }
+
+  //Creating battery and container applications 
+  ApplicationContainer appContainerP = appHelperP.Install (endDevices_pilhas);
+  ApplicationContainer appContainerC = appHelperC.Install (endDevices_conteiners);
+  
+  //Addition of application subgroups in the final application of the simulation 
+  ApplicationContainer appContainer;
+  appContainer.Add(appContainerP);
+  appContainer.Add(appContainerC);
+
+  //Verification of packet interval per node
+  /*for (ApplicationContainer::Iterator j = appContainer.Begin (); j != appContainer.End (); ++j){
+    Ptr<Application> app = *j;
+    Ptr<Node> node = app->GetNode();
+    Ptr<PeriodicSender> t = app->GetObject<PeriodicSender>();
+    cout << "Nó "<< node->GetId() << ": " << t->GetInterval().GetHours() << " Horas\n"; 
+  }*/
+  
 
   // Start simulation
   appContainer.Start (Seconds (0));
