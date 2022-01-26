@@ -186,7 +186,7 @@ void PacketTraceGW(Ptr<Packet const> pacote){
     pacote_dr.insert({pkid, receivedTime - sent});
     spreadFList[sf].R++;
     count_receiv_pkts = count_receiv_pkts + 1;
-    cout << "receive: " << count_send_pkts <<endl;
+    cout << "receive: " << count_receiv_pkts <<endl;
 }
 
 void GetEnergyRemaining(EnergySourceContainer sources, double interval){
