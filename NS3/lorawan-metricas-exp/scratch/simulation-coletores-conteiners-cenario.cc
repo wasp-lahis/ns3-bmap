@@ -26,7 +26,7 @@
  *  
  * RUN example:
  * $ cd NS3_BASE_DIR
- * $ ./waf --run "simulation-coletores-conteiners-cenario --exp_name=coletores_conteiners_unicamp --simu_repeat=1"
+ * $ ./waf --run "simulation-coletores-conteiners-cenario --simu_repeat=1"
  */
 
 
@@ -75,7 +75,7 @@ struct spf{
     Time delay;
 };
 
-struct unicamp_trash_bins{ // pilhas e baterias
+struct unicamp_battery_bins{ // armazenará dataset de coletores de pilhas e baterias
     double id;
     string name;
     double x;
@@ -88,8 +88,7 @@ struct unicamp_trash_bins{ // pilhas e baterias
     double elev_min;
 };
 
-
-struct unicamp_conteiner_bins{ // conteiners n reciclaveis
+struct unicamp_conteiner_bins{ // armazenará dataset de conteiners n reciclaveis
     double x;
     double y;
     double z;
@@ -106,14 +105,14 @@ map <uint64_t, Time> pacote_dr; // receive
 vector<double> distances;
 
 // dataset structs
-vector<unicamp_trash_bins> unicamp_trash_bins_dataset;
+vector<unicamp_battery_bins> unicamp_battery_bins_dataset;
 vector<unicamp_conteiner_bins> unicamp_conteiner_bins_dataset;
 
 // Network settings
 int nDevices = 0; // sera sobrescrito
 int nGateways = 1;
 int payloadSize = 11;   // bytes: id - 6 bytes, level - 4 bytes, batery - 1 byte
-Time appPeriod = Hours(6); // 4 x no dias
+Time appPeriod = Hours(0.5); // 30 em 30 min
 // Time appPeriod = Seconds(10); 
 
 uint8_t txEndDevice = 20; // Dbm
@@ -121,11 +120,11 @@ double regionalFrequency = 915e6; // frequency band AU 915 MHz
 // double regionalFrequency = 868e6; // frequency band EU 868 MHz
 
 // Simulation settings
-Time simulationTime = Hours(24 * 7); //   
+Time simulationTime = Hours(24*30); // 1 ano   
 int nSimulationRepeat = 0;
 
 // Input dataset file names
-string nodes_trash_dataset = "coletores_pos_dataset_elev.csv"; //  Nodes positions dataset
+string nodes_battery_dataset = "coletores_pos_dataset_elev.csv"; //  Nodes positions dataset
 string nodes_conteiner_dataset = "conteiners_dataset.csv"; //  Nodes positions dataset
 
 // Output file names
@@ -162,7 +161,8 @@ void cleaning_structs(){
   deviceList.clear();
   spreadFList.clear();
   distances.clear();
-  unicamp_trash_bins_dataset.clear();
+
+  unicamp_battery_bins_dataset.clear();
   unicamp_conteiner_bins_dataset.clear();
 }
 
@@ -174,7 +174,7 @@ void PacketTraceDevice(Ptr<Packet const> pacote){
     pacote_ds.insert({pacote->GetUid(), sendTime});
     spreadFList[deviceList[id].SF].S++;   
     count_send_pkts = count_send_pkts +1;
-    cout << "Num of Packets sent: " << count_send_pkts <<endl;
+    cout << "Num of Packets sent: " << count_send_pkts << " - ";
 }
 
 // Count Received Packet per SF
@@ -186,6 +186,7 @@ void PacketTraceGW(Ptr<Packet const> pacote){
     pacote_dr.insert({pkid, receivedTime - sent});
     spreadFList[sf].R++;
     count_receiv_pkts = count_receiv_pkts + 1;
+    cout << "receive: " << count_send_pkts <<endl;
 }
 
 void GetEnergyRemaining(EnergySourceContainer sources, double interval){
@@ -270,7 +271,7 @@ void GetGWRSSI(NodeContainer endDevices, NodeContainer gateways,Ptr<LoraChannel>
 }
 
 // https://www.nsnam.org/doxygen/classns3_1_1_csv_reader.html
-void read_trash_bin_dataset(const std::string &filepath){
+void read_battery_bin_dataset(const std::string &filepath){
 
   CsvReader csv (filepath);
 
@@ -302,7 +303,7 @@ void read_trash_bin_dataset(const std::string &filepath){
         continue;
       }
       else {
-        unicamp_trash_bins_dataset.push_back({
+        unicamp_battery_bins_dataset.push_back({
           id,  
           name,  
           x,  
@@ -318,12 +319,12 @@ void read_trash_bin_dataset(const std::string &filepath){
     }  // while FetchNextRow
     
     // delete first row
-    unicamp_trash_bins_dataset.erase(unicamp_trash_bins_dataset.begin());
+    unicamp_battery_bins_dataset.erase(unicamp_battery_bins_dataset.begin());
     
     // Show info
     // int aux = 0;
-    // cout << "Total Rows: "<< unicamp_trash_bins_dataset.size() << endl;
-    // for ( vector<unicamp_trash_bins>::iterator i = unicamp_trash_bins_dataset.begin(); i!= unicamp_trash_bins_dataset.end(); ++i){
+    // cout << "Total Rows: "<< unicamp_battery_bins_dataset.size() << endl;
+    // for ( vector<unicamp_battery_bins>::iterator i = unicamp_battery_bins_dataset.begin(); i!= unicamp_battery_bins_dataset.end(); ++i){
     //       cout << aux<<", "<<i->id << ", " << i->name << ", " << i->x << ", " << i->y << ", " << i->z << ", " << i->elevation << ", " << i->delta<< ", " << i->elev_min<< std::endl;
     //       aux++;
     // }
@@ -367,12 +368,12 @@ void read_conteiner_bin_dataset(const std::string &filepath){
     // unicamp_conteiner_bins_dataset.erase(unicamp_conteiner_bins_dataset.begin());
     
     // Show info
-    int aux = 0;
-    cout << "Total Rows: "<< unicamp_conteiner_bins_dataset.size() << endl;
-    for ( vector<unicamp_conteiner_bins>::iterator i = unicamp_conteiner_bins_dataset.begin(); i!= unicamp_conteiner_bins_dataset.end(); ++i){
-          cout << i->x << ", " << i->y << ", " << i->z << std::endl;
-          aux++;
-    }
+    // int aux = 0;
+    // cout << "Total Rows: "<< unicamp_conteiner_bins_dataset.size() << endl;
+    // for ( vector<unicamp_conteiner_bins>::iterator i = unicamp_conteiner_bins_dataset.begin(); i!= unicamp_conteiner_bins_dataset.end(); ++i){
+    //       cout << i->x << ", " << i->y << ", " << i->z << std::endl;
+    //       aux++;
+    // }
     
 }
 
@@ -397,7 +398,7 @@ LoraPacketTracker& runSimulation(){
  
   // positioning nodes     
   Ptr<ListPositionAllocator> allocator = CreateObject<ListPositionAllocator> ();
-  for ( vector<unicamp_trash_bins>::iterator i = unicamp_trash_bins_dataset.begin(); i!= unicamp_trash_bins_dataset.end(); ++i){
+  for ( vector<unicamp_battery_bins>::iterator i = unicamp_battery_bins_dataset.begin(); i!= unicamp_battery_bins_dataset.end(); ++i){
     allocator->Add (Vector (i->x, i->y, (i->z)));
   }
   for ( vector<unicamp_conteiner_bins>::iterator i = unicamp_conteiner_bins_dataset.begin(); i!= unicamp_conteiner_bins_dataset.end(); ++i){
@@ -622,7 +623,6 @@ void getSimulationResults(LoraPacketTracker& tracker){
 int main (int argc, char *argv[])
 {
       CommandLine cmd;
-      cmd.AddValue ("exp_name", "Experiment name", exp_name);
       cmd.AddValue ("simu_repeat", "Number of Simulation Repeat", nSimulationRepeat);
       cmd.Parse (argc, argv);
      
@@ -631,12 +631,12 @@ int main (int argc, char *argv[])
       // LogComponentEnable("LoraChannel", LOG_LEVEL_INFO); // tx, rx info
 
       // change result files name by experiment name
-      rssi_result_file = "rssi_results_" + exp_name + ".txt";
-      net_position_file = "network_position_" + exp_name + ".txt";
-      net_result_file = "net_results_" + exp_name + ".txt";
-      delay_result_file = "delay_results_" + exp_name + ".txt";
-      phy_result_file = "phy_results_" + exp_name + ".txt";
-      energy_result_file = "energy_results_" + exp_name + ".txt"; 
+      rssi_result_file = "rssi_results.txt";
+      net_position_file = "network_position.txt";
+      net_result_file = "net_results.txt";
+      delay_result_file = "delay_results.txt";
+      phy_result_file = "phy_results.txt";
+      energy_result_file = "energy_results.txt"; 
 
       for(int n = 0; n < nSimulationRepeat; n++){
         // generate a different seed for each simulation 
@@ -648,10 +648,10 @@ int main (int argc, char *argv[])
         cout << "\n[SEED "<< n << "]: " << seed << "\n";  
         
         //load nodes dataset  
-        read_trash_bin_dataset(nodes_trash_dataset); 
+        read_battery_bin_dataset(nodes_battery_dataset); 
         read_conteiner_bin_dataset(nodes_conteiner_dataset);
-        nDevices = unicamp_trash_bins_dataset.size() + unicamp_conteiner_bins_dataset.size();
-        cout << "unicamp_trash_bins_dataset:" << unicamp_trash_bins_dataset.size() << endl;
+        nDevices = unicamp_battery_bins_dataset.size() + unicamp_conteiner_bins_dataset.size();
+        cout << "unicamp_battery_bins_dataset:" << unicamp_battery_bins_dataset.size() << endl;
         cout << "unicamp_conteiner_bins_dataset:" << unicamp_conteiner_bins_dataset.size() << endl;
         cout << "nDevices:" << nDevices << endl;
      
