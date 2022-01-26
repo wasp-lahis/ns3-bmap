@@ -8,12 +8,16 @@ Various codes, files and datasets for LoRa/LoRaWAN Simulations.
 ├── NS3
 |   ├── buildings_exp
 |   ├── datasets 
+	├── lorawan-metricas-exp 
+	├── lorawan-module-classes 
 |   └── obstacle_exp
-├── SUMO.md
+├── NS3_TIPS.md
+├── SUMO_TIPS.md
 └── LEVANTAMENTO_MAPAS.md	
 ```
 * **_NS3_**: main folder. Its has code experiments and datasets.
-* **_SUMO_**: this file contains some useful links and commands for [**sumo lib**](https://sumo.dlr.de/docs/index.html).
+* **_NS3_TIPS_**: this file contains some useful links and commands for NS3.
+* **_SUMO_TIPS_**: this file contains some useful links and commands for [**sumo lib**](https://sumo.dlr.de/docs/index.html).
 * **_LEVANTAMENTO_MAPAS_**: this file contains a survey on the main map libs and some links of 2D/3D map theory.
 
 
