@@ -113,6 +113,7 @@ int nDevices = 0; // sera sobrescrito
 int nGateways = 1;
 int payloadSize = 11;   // bytes: id - 6 bytes, level - 4 bytes, batery - 1 byte
 Time appPeriod = Hours(0.5); // 30 em 30 min
+// Time appPeriod = Minutes(1); // 1 em 1 min
 // Time appPeriod = Seconds(10); 
 
 uint8_t txEndDevice = 20; // Dbm
@@ -120,7 +121,10 @@ double regionalFrequency = 915e6; // frequency band AU 915 MHz
 // double regionalFrequency = 868e6; // frequency band EU 868 MHz
 
 // Simulation settings
-Time simulationTime = Hours(24*30); // 1 ano   
+Time simulationTime = Hours(24*30); // 1 mes   
+// Time simulationTime = Minutes(1); // 1 em 1 min 
+// Time simulationTime = Seconds(10);  
+
 int nSimulationRepeat = 0;
 
 // Input dataset file names
@@ -137,8 +141,8 @@ string delay_result_file = ""; // delay result file
 string phy_result_file = ""; // phy result file
 string energy_result_file = "";
 
-int count_send_pkts = 0;
-int count_receiv_pkts = 0;
+double count_send_pkts = 0;
+double count_receiv_pkts = 0;
 
 /* -----------------------------------------------------------------------------
 *			MAIN
