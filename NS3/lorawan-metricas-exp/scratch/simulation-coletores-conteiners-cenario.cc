@@ -55,6 +55,7 @@
 
 // mobilty
 #include "ns3/csv-reader.h"
+#include "ns3/int64x64-128.h"
 
 // namespaces
 using namespace ns3;
@@ -66,12 +67,12 @@ NS_LOG_COMPONENT_DEFINE ("lorawan-unicamp-3d");
 // -------- Setup Variables and Structures --------
 
 struct device{
-    int SF;
+    double SF;
 };
 
 struct spf{
-    int S;
-    int R;
+    double S;
+    double R;
     Time delay;
 };
 
@@ -112,9 +113,9 @@ vector<unicamp_conteiner_bins> unicamp_conteiner_bins_dataset;
 int nDevices = 0; // sera sobrescrito
 int nGateways = 1;
 int payloadSize = 11;   // bytes: id - 6 bytes, level - 4 bytes, batery - 1 byte
-Time appPeriod = Hours(0.5); // 30 em 30 min
+// Time appPeriod = Hours(0.5); // 30 em 30 min
 // Time appPeriod = Minutes(1); // 1 em 1 min
-// Time appPeriod = Seconds(10); 
+Time appPeriod = Seconds(1); 
 
 uint8_t txEndDevice = 20; // Dbm
 double regionalFrequency = 915e6; // frequency band AU 915 MHz
@@ -141,8 +142,8 @@ string delay_result_file = ""; // delay result file
 string phy_result_file = ""; // phy result file
 string energy_result_file = "";
 
-double count_send_pkts = 0;
-double count_receiv_pkts = 0;
+long double count_send_pkts = 0.;
+long double count_receiv_pkts = 0.;
 
 /* -----------------------------------------------------------------------------
 *			MAIN

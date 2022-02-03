@@ -32,7 +32,7 @@ Pacotes esperados: 319680
 ```
 1 mês, 483800 mensagens ao dia (10 em 10 min) - Repetição 1x
 Tam do payload: 11 bytes
-Pacotes esperados: 
+Pacotes esperados: 3222108000
 ```
 
 - **04** (Marianna): 
@@ -46,7 +46,7 @@ Tam do payload: 14 bytes (conteiner)
 Intervalo de envio: 6-6h 
 Tam do payload: 5 bytes (bateria)
 
-Pacotes esperados: 
+Pacotes esperados: 126000 + 5640 = 131640
 ```
 
 - **05** (Marianna): 
@@ -60,6 +60,7 @@ Tam do payload: 14 bytes (conteiner)
 Intervalo de envio: 30-30min
 Tam do payload: 5 bytes (bateria)
 
-Pacotes esperados: 
+Pacotes esperados: 959040 + 319680 = 1278720
 ```
+
 
