@@ -60,7 +60,7 @@ Tam do payload: 14 bytes (conteiner)
 Intervalo de envio: 30-30min
 Tam do payload: 5 bytes (bateria)
 
-Pacotes esperados: 959040 + 319680 = 1278720
+Pacotes esperados: 756000 + 67680 = 823680
 ```
 
 
