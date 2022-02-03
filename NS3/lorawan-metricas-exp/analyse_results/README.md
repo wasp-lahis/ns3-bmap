@@ -7,10 +7,10 @@ Various codes, files and datasets for LoRa/LoRaWAN Simulations.
 * **_dataset_bases_conteiners_n_reciclaveis.txt_**: conteiner bases dataset.
 * **_base_conteiners_dataset.csv_**: conteiner bases dataset.
 * **_conteiners_dataset.csv_**: conteiner bin type dataset.
-* **_coletores_pos_dataset_elev.csv_**: batery bin type dataset with elevation data.
+* **_coletores_pos_dataset_elev.csv_**: battery bin type dataset with elevation data.
 
 ### Jupyter Notebooks
-* **_unicamp_scenario_analisys.ipynb_**: **generate plots from ns3 simulation output files**.
+* **_unicamp_scenario_analysis.ipynb_**: **generate plots from ns3 simulation output files**.
 * **_create-dataset-inputs-to-ns3.ipynb_**: (lembrar pq está aq).
 * **_Teste_funcionamento_simulador.ipynb_**: ns3 network performance metrics test.
 
