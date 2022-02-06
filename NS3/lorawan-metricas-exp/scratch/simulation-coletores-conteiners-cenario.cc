@@ -26,7 +26,7 @@
  *  
  * RUN example:
  * $ cd NS3_BASE_DIR
- * $ ./waf --run "simulation-coletores-conteiners-cenario --simu_repeat=1"
+ * $ ./waf --run "simulation-coletores-conteiners-cenario --simu_repeat=1 --channel_model=okumura"
  */
 
 
@@ -109,20 +109,23 @@ vector<double> distances;
 vector<unicamp_battery_bins> unicamp_battery_bins_dataset;
 vector<unicamp_conteiner_bins> unicamp_conteiner_bins_dataset;
 
+// Channel model
+std::string channel_model = "";
+
 // Network settings
 int nDevices = 0; // sera sobrescrito
 int nGateways = 1;
 int payloadSize = 11;   // bytes: id - 6 bytes, level - 4 bytes, batery - 1 byte
-// Time appPeriod = Hours(0.5); // 30 em 30 min
+Time appPeriod = Hours(0.5); // 30 em 30 min
 // Time appPeriod = Minutes(1); // 1 em 1 min
-Time appPeriod = Seconds(1); 
+// Time appPeriod = Seconds(1); 
 
 uint8_t txEndDevice = 20; // Dbm
 double regionalFrequency = 915e6; // frequency band AU 915 MHz
 // double regionalFrequency = 868e6; // frequency band EU 868 MHz
 
 // Simulation settings
-Time simulationTime = Hours(24*30); // 1 mes   
+Time simulationTime = Hours(1); // 1 mes   
 // Time simulationTime = Minutes(1); // 1 em 1 min 
 // Time simulationTime = Seconds(10);  
 
@@ -384,15 +387,29 @@ void read_conteiner_bin_dataset(const std::string &filepath){
 
 // Simulation Code
 LoraPacketTracker& runSimulation(){
+
   // Channel Propagation Model
-  Ptr<OkumuraHataPropagationLossModel> okumuraLoss = CreateObject<OkumuraHataPropagationLossModel>();
-  okumuraLoss->SetAttribute("Frequency", DoubleValue(regionalFrequency));
-  okumuraLoss->SetAttribute("Environment", EnumValue (SubUrbanEnvironment));
-  okumuraLoss->SetAttribute("CitySize", EnumValue (SmallCity));
-  
+  Ptr<LogDistancePropagationLossModel> logDistLoss;  
+  Ptr<OkumuraHataPropagationLossModel> okumuraloss;
+  Ptr<PropagationLossModel> final_loss;
+
+  if (channel_model == "log-distance"){
+    logDistLoss = CreateObject<LogDistancePropagationLossModel> ();
+    logDistLoss->SetPathLossExponent (3.28128); // 915 Mhz, h = (1.5 + 43.41880713641183) = 44.92, R=1m
+    logDistLoss->SetReference (1.0, 14.0116);
+    final_loss = logDistLoss;
+  }
+  else if (channel_model == "okumura"){
+    Ptr<OkumuraHataPropagationLossModel> okumuraLoss = CreateObject<OkumuraHataPropagationLossModel>();
+    okumuraLoss->SetAttribute("Frequency", DoubleValue(regionalFrequency));
+    okumuraLoss->SetAttribute("Environment", EnumValue (SubUrbanEnvironment));
+    okumuraLoss->SetAttribute("CitySize", EnumValue (SmallCity));
+    final_loss = okumuraLoss;
+  }
+
   // Create channel
   Ptr<PropagationDelayModel> delay = CreateObject<ConstantSpeedPropagationDelayModel> ();
-  Ptr<LoraChannel> channel = CreateObject<LoraChannel> (okumuraLoss, delay);
+  Ptr<LoraChannel> channel = CreateObject<LoraChannel> (final_loss, delay);
   
   // Helpers
   LoraPhyHelper phyHelper = LoraPhyHelper (); // Create the LoraPhyHelper
@@ -629,6 +646,7 @@ int main (int argc, char *argv[])
 {
       CommandLine cmd;
       cmd.AddValue ("simu_repeat", "Number of Simulation Repeat", nSimulationRepeat);
+      cmd.AddValue ("channel_model", "Channel Model", channel_model);
       cmd.Parse (argc, argv);
      
       // Set up logging
