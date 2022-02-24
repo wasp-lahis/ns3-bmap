@@ -26,7 +26,8 @@
  *  
  * RUN example:
  * $ cd NS3_BASE_DIR
- * $ ./waf --run "simulation-coletores-conteiners-cenario --simu_repeat=1 --channel_model=okumura"
+ * $ conda activate ns3-buildings
+ * $ ./waf --run "simulation-coletores-conteiners-cenario --simu_repeat=1 --channel_model=log-distance"
  */
 
 
@@ -47,9 +48,13 @@
 #include <fstream>
 #include <ns3/spectrum-module.h>
 #include <ns3/okumura-hata-propagation-loss-model.h>
+#include "ns3/correlated-shadowing-propagation-loss-model.h"
 #include "ns3/flow-monitor-helper.h"
 
-// energy model
+// energy-harvester
+#include "ns3/energy-module.h"
+#include "ns3/basic-energy-harvester.h"
+// basic energy model
 #include "ns3/basic-energy-source-helper.h"
 #include "ns3/lora-radio-energy-model-helper.h"
 
@@ -115,9 +120,9 @@ std::string channel_model = "";
 // Network settings
 int nDevices = 0; // sera sobrescrito
 int nGateways = 1;
-int payloadSize = 11;   // bytes: id - 6 bytes, level - 4 bytes, batery - 1 byte
-Time appPeriod = Hours(0.5); // 30 em 30 min
-// Time appPeriod = Minutes(1); // 1 em 1 min
+int payloadSize = 31;   
+Time appPeriod = Hours(1); 
+// Time appPeriod = Minutes(1); 
 // Time appPeriod = Seconds(1); 
 
 uint8_t txEndDevice = 20; // Dbm
@@ -125,7 +130,7 @@ double regionalFrequency = 915e6; // frequency band AU 915 MHz
 // double regionalFrequency = 868e6; // frequency band EU 868 MHz
 
 // Simulation settings
-Time simulationTime = Hours(1); // 1 mes   
+Time simulationTime = Hours(24*1); // 1 mes   
 // Time simulationTime = Minutes(1); // 1 em 1 min 
 // Time simulationTime = Seconds(10);  
 
@@ -152,7 +157,6 @@ long double count_receiv_pkts = 0.;
 *			MAIN
 * ------------------------------------------------------------------------------
 */
-
 
 // -------- Functions --------
 
@@ -203,7 +207,7 @@ void GetEnergyRemaining(EnergySourceContainer sources, double interval){
   string logFile = output_results_path + energy_result_file;
   
   os.open (logFile.c_str (), std::ofstream::out | std::ofstream::app);
-  // std::cout << "\nEnergy Remaining: " << sources.Get(0)->GetRemainingEnergy() << " " << std::endl;
+  std::cout << "\nEnergy Remaining: " << sources.Get(0)->GetRemainingEnergy() << " " << std::endl;
   os << (Simulator::Now()).GetSeconds() << "," << sources.Get(0)->GetRemainingEnergy() << std::endl;
   os.close();
 
@@ -391,12 +395,25 @@ LoraPacketTracker& runSimulation(){
   // Channel Propagation Model
   Ptr<LogDistancePropagationLossModel> logDistLoss;  
   Ptr<OkumuraHataPropagationLossModel> okumuraloss;
+  Ptr<CorrelatedShadowingPropagationLossModel> shadowing;
   Ptr<PropagationLossModel> final_loss;
 
   if (channel_model == "log-distance"){
     logDistLoss = CreateObject<LogDistancePropagationLossModel> ();
     logDistLoss->SetPathLossExponent (3.28128); // 915 Mhz, h = (1.5 + 43.41880713641183) = 44.92, R=1m
     logDistLoss->SetReference (1.0, 14.0116);
+    final_loss = logDistLoss;
+  }
+  else if (channel_model == "correlated-shadowing"){
+    logDistLoss = CreateObject<LogDistancePropagationLossModel> ();
+    logDistLoss->SetPathLossExponent (3.28128); // 915 Mhz, h = (1.5 + 43.41880713641183) = 44.92, R=1m
+    logDistLoss->SetReference (1.0, 14.0116);
+
+    // Create the correlated shadowing component
+    shadowing = CreateObject<CorrelatedShadowingPropagationLossModel> ();
+    // Aggregate shadowing to the logdistance loss
+    logDistLoss->SetNext (shadowing);
+
     final_loss = logDistLoss;
   }
   else if (channel_model == "okumura"){
@@ -532,17 +549,24 @@ LoraPacketTracker& runSimulation(){
 
   // configure energy source
   // values based on SX1272/73 datasheet - Table 6 Power Consumption Specification
+  float sensors_consumption = 0.3447;// sensor + controller board consumption
   basicSourceHelper.Set ("BasicEnergySourceInitialEnergyJ", DoubleValue (10000)); // Energy in J
   basicSourceHelper.Set ("BasicEnergySupplyVoltageV", DoubleValue (3.3)); // Volts
-  radioEnergyHelper.Set ("StandbyCurrentA", DoubleValue (0.0014)); // Ampere
-  radioEnergyHelper.Set ("TxCurrentA", DoubleValue (0.028)); // Ampere
-  radioEnergyHelper.Set ("SleepCurrentA", DoubleValue (0.0000015)); // Ampere
-  radioEnergyHelper.Set ("RxCurrentA", DoubleValue (0.0112)); // Ampere
-  radioEnergyHelper.SetTxCurrentModel ("ns3::ConstantLoraTxCurrentModel","TxCurrent", DoubleValue (0.028)); // Ampere
-
+  radioEnergyHelper.Set ("StandbyCurrentA", DoubleValue (0.0014 + sensors_consumption)); // Ampere
+  radioEnergyHelper.Set ("TxCurrentA", DoubleValue (0.028 + sensors_consumption)); // consumo sensores
+  radioEnergyHelper.Set ("SleepCurrentA", DoubleValue (0.0000015 + sensors_consumption)); // Ampere
+  radioEnergyHelper.Set ("RxCurrentA", DoubleValue (0.0112 + sensors_consumption)); // Ampere
+  radioEnergyHelper.SetTxCurrentModel ("ns3::ConstantLoraTxCurrentModel","TxCurrent", DoubleValue (0.028 + sensors_consumption)); // Ampere
+  
   // install source on EDs' nodes
   EnergySourceContainer sources = basicSourceHelper.Install (endDevices);
   
+  // EnergyHarvester
+  BasicEnergyHarvesterHelper basicHarvesterHelper;
+  basicHarvesterHelper.Set ("PeriodicHarvestedPowerUpdateInterval", TimeValue (Seconds (1.0)));
+  basicHarvesterHelper.Set ("HarvestablePower", StringValue ("ns3::UniformRandomVariable[Min=0.3|Max=1.0]"));
+  EnergyHarvesterContainer harvesters = basicHarvesterHelper.Install (sources);
+
   // install device model
   DeviceEnergyModelContainer deviceModels = radioEnergyHelper.Install(endDevicesNetDevices, sources);
 
@@ -674,6 +698,7 @@ int main (int argc, char *argv[])
         read_battery_bin_dataset(nodes_battery_dataset); 
         read_conteiner_bin_dataset(nodes_conteiner_dataset);
         nDevices = unicamp_battery_bins_dataset.size() + unicamp_conteiner_bins_dataset.size();
+        // nDevices = unicamp_conteiner_bins_dataset.size();
         cout << "unicamp_battery_bins_dataset:" << unicamp_battery_bins_dataset.size() << endl;
         cout << "unicamp_conteiner_bins_dataset:" << unicamp_conteiner_bins_dataset.size() << endl;
         cout << "nDevices:" << nDevices << endl;

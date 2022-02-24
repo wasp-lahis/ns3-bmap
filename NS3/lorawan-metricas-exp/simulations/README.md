@@ -98,6 +98,36 @@ Tam do payload: 5 bytes (bateria)
 Pacotes esperados: 756000 + 67680 = 823680
 ```
 
+- **04-cor** (Marianna): 
+```
+Período: 1 mês
+Repetição de Simulação: 10x
+Modelo de propagação: Log Distance + Correlated Shadowing
+
+Intervalo de envio: 1-1h 
+Tam do payload: 14 bytes (conteiner)
+
+Intervalo de envio: 6-6h 
+Tam do payload: 5 bytes (bateria)
+
+Pacotes esperados: 126000 + 5640 = 131640
+```
+
+- **05-cor** (Marianna): 
+```
+Período: 1 mês
+Repetição de Simulação: 10x
+Modelo de propagação: Log Distance + Correlated Shadowing
+
+Intervalo de envio: 10-10min 
+Tam do payload: 14 bytes (conteiner)
+
+Intervalo de envio: 30-30min
+Tam do payload: 5 bytes (bateria)
+
+Pacotes esperados: 756000 + 67680 = 823680
+```
+
 - **06**: 
 ```
 Período: 1 mês
