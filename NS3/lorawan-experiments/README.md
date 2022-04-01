@@ -5,7 +5,7 @@
 ├── smart-campus-applications
 └── smart-waste-management
 ```
-* **_smart-campus-applications_**: contains many lorawan applications simulations at Unicamp. The applications are:
+* **_smart-campus-applications_**: contains simulations of many lorawan applications at Unicamp. The applications are:
 	- Waste Management (battery)
 	- Waste Management (container)
 	- Air Monitoring 

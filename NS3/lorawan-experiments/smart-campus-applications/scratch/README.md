@@ -12,7 +12,6 @@ Insert this two commands to run simulations:
 
 $ cd NS3_BASE_DIR
 $ ./waf --run "simulation-many-lorawan-applications --simu_repeat=10 --channel_model=log-distance --n_devices_without_dataset=10"
- */
 ```
 
 Parameters:
