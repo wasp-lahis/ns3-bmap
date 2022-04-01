@@ -118,21 +118,14 @@ std::string channel_model = "";
 int nDevices = 0; // sera sobrescrito
 int nDevices_without_dataset = 0;
 int nGateways = 1;
-int payloadSize = 31;   
-Time appPeriod = Hours(0.25); 
-// Time appPeriod = Minutes(1); 
-// Time appPeriod = Seconds(1); 
 
 uint8_t txEndDevice = 20; // Dbm
 double regionalFrequency = 915e6; // frequency band AU 915 MHz
 // double regionalFrequency = 868e6; // frequency band EU 868 MHz
 
 // Simulation settings
-Time simulationTime = Hours(0.5); // 1 mes   
-// Time simulationTime = Minutes(1); // 1 em 1 min 
-// Time simulationTime = Seconds(10);  
-
 int nSimulationRepeat = 0;
+Time simulationTime = Hours(24); // 1 dia
 
 // Input dataset file names
 string nodes_battery_dataset = "coletores_pos_dataset_elev.csv"; //  Nodes positions dataset
@@ -146,7 +139,6 @@ string net_position_file = ""; // device position by SF results
 string net_result_file = ""; // network metrics file (pdr e per)
 string delay_result_file = ""; // delay result file
 string phy_result_file = ""; // phy result file
-string energy_result_file = "";
 
 long double count_send_pkts = 0.;
 long double count_receiv_pkts = 0.;
@@ -197,19 +189,6 @@ void PacketTraceGW(Ptr<Packet const> pacote){
     spreadFList[sf].R++;
     count_receiv_pkts = count_receiv_pkts + 1;
     cout << "receive: " << count_receiv_pkts <<endl;
-}
-
-void GetEnergyRemaining(EnergySourceContainer sources, double interval){
-  // open log file for output
-  ofstream os;
-  string logFile = output_results_path + energy_result_file;
-  
-  os.open (logFile.c_str (), std::ofstream::out | std::ofstream::app);
-  std::cout << "\nEnergy Remaining: " << sources.Get(0)->GetRemainingEnergy() << " " << std::endl;
-  os << (Simulator::Now()).GetSeconds() << "," << sources.Get(0)->GetRemainingEnergy() << std::endl;
-  os.close();
-
-  Simulator::Schedule(Hours(interval), &GetEnergyRemaining, sources, interval);
 }
 
 // write in an output file the position of devices, distance from gateway and positions (x,y) per SF
@@ -552,51 +531,109 @@ LoraPacketTracker& runSimulation(){
   ForwarderHelper forwarderHelper;
   forwarderHelper.Install (gateways);
 
+  // Set simulation duration
   Time appStopTime = simulationTime;
-  PeriodicSenderHelper appHelper = PeriodicSenderHelper ();
-  appHelper.SetPeriod (appPeriod);
-  appHelper.SetPacketSize (payloadSize);
 
-  /************************
-   * Install Energy Model *
-   ************************/
-  BasicEnergySourceHelper basicSourceHelper;
-  LoraRadioEnergyModelHelper radioEnergyHelper;
+  // ---- Creation of packet intervals and payload sizes for each type of node application:
+  //  - batteries: 
+  //  - containers: 
+  //  - air_monitoring:
+  //  - air_monitoring_2:
+  //  - indoor/outdoor localization:
+  PeriodicSenderHelper appHelper_battery = PeriodicSenderHelper ();
+  appHelper_battery.SetPeriod (Hours(1));
+  appHelper_battery.SetPacketSize (5); // bytes
 
-  // configure energy source
-  // values based on SX1272/73 datasheet - Table 6 Power Consumption Specification
-  float sensors_consumption = 0.3447;// sensor + controller board consumption
-  basicSourceHelper.Set ("BasicEnergySourceInitialEnergyJ", DoubleValue (10000)); // Energy in J
-  basicSourceHelper.Set ("BasicEnergySupplyVoltageV", DoubleValue (3.3)); // Volts
-  radioEnergyHelper.Set ("StandbyCurrentA", DoubleValue (0.0014 + sensors_consumption)); // Ampere
-  radioEnergyHelper.Set ("TxCurrentA", DoubleValue (0.028 + sensors_consumption)); // consumo sensores
-  radioEnergyHelper.Set ("SleepCurrentA", DoubleValue (0.0000015 + sensors_consumption)); // Ampere
-  radioEnergyHelper.Set ("RxCurrentA", DoubleValue (0.0112 + sensors_consumption)); // Ampere
-  radioEnergyHelper.SetTxCurrentModel ("ns3::ConstantLoraTxCurrentModel","TxCurrent", DoubleValue (0.028 + sensors_consumption)); // Ampere
+  PeriodicSenderHelper appHelper_container = PeriodicSenderHelper ();
+  appHelper_container.SetPeriod (Hours(2));
+  appHelper_container.SetPacketSize (31);
+
+  PeriodicSenderHelper appHelper_air_monitoring = PeriodicSenderHelper ();
+  appHelper_air_monitoring.SetPeriod (Seconds(72));
+  appHelper_air_monitoring.SetPacketSize (31);
+
+  PeriodicSenderHelper appHelper_air_monitoring_2 = PeriodicSenderHelper ();
+  appHelper_air_monitoring_2.SetPeriod (Seconds(10));
+  appHelper_air_monitoring_2.SetPacketSize (31);
+
+  PeriodicSenderHelper appHelper_localization = PeriodicSenderHelper ();
+  appHelper_localization.SetPeriod (Seconds(60));
+  appHelper_localization.SetPacketSize (32);
+  // ----
+
+  // Separation of nodes into:
+  //  - baterry type
+  //  - container type
+  //  - air monitoring type
+  //  - air monitoring type
+  //  - indoor/outdoor localization type
+  NodeContainer endDevices_pilhas;
+  NodeContainer endDevices_conteiners;
+  NodeContainer endDevices_air_monitoring;
+  NodeContainer endDevices_air_monitoring_2;
+  NodeContainer endDevices_localization;
   
-  // install source on EDs' nodes
-  EnergySourceContainer sources = basicSourceHelper.Install (endDevices);
-  
-  // EnergyHarvester
-  BasicEnergyHarvesterHelper basicHarvesterHelper;
-  basicHarvesterHelper.Set ("PeriodicHarvestedPowerUpdateInterval", TimeValue (Seconds (1.0)));
-  basicHarvesterHelper.Set ("HarvestablePower", StringValue ("ns3::UniformRandomVariable[Min=0.3|Max=1.0]"));
-  EnergyHarvesterContainer harvesters = basicHarvesterHelper.Install (sources);
+  int size_max = int(unicamp_battery_bins_dataset.size());
+  for(int i = 0; i < size_max; i++){
+    endDevices_pilhas.Add(endDevices.Get(i));
+  }
+  for(int i = size_max; i < (size_max + int(unicamp_conteiner_bins_dataset.size())); i++){
+    endDevices_conteiners.Add(endDevices.Get(i));
+  }
+  size_max = size_max + int(unicamp_conteiner_bins_dataset.size());
+  for(int i = size_max; i < (size_max + nDevices_without_dataset); i++){
+    endDevices_air_monitoring.Add(endDevices.Get(i));
+  }
+  size_max = size_max + nDevices_without_dataset;
+  for(int i = size_max; i < (size_max + nDevices_without_dataset); i++){
+    endDevices_air_monitoring_2.Add(endDevices.Get(i));
+  }
+  size_max = size_max + nDevices_without_dataset;
+  for(int i = size_max; i < (size_max + nDevices_without_dataset); i++){
+    endDevices_localization.Add(endDevices.Get(i));
+  }
+  cout << "[INFO] Size max: " << size_max + nDevices_without_dataset << endl ;
 
-  // install device model
-  DeviceEnergyModelContainer deviceModels = radioEnergyHelper.Install(endDevicesNetDevices, sources);
+
+  // Creating follow applications:
+  //  - baterry type
+  //  - container type
+  //  - air monitoring type
+  //  - air monitoring type
+  //  - indoor/outdoor localization type
+
+  ApplicationContainer appContainer_battery = appHelper_battery.Install (endDevices_pilhas);
+  ApplicationContainer appContainer_container = appHelper_container.Install (endDevices_conteiners);
+  ApplicationContainer appContainer_air_monitoring = appHelper_air_monitoring.Install (endDevices_air_monitoring);
+  ApplicationContainer appContainer_air_monitoring_2 = appHelper_air_monitoring_2.Install (endDevices_air_monitoring_2);
+  ApplicationContainer appContainer_air_localization = appHelper_localization.Install (endDevices_localization);
+  
+  //Addition of application subgroups in the final application of the simulation 
+  ApplicationContainer appContainer;
+  appContainer.Add(appContainer_battery);
+  appContainer.Add(appContainer_container);
+  appContainer.Add(appContainer_air_monitoring);
+  appContainer.Add(appContainer_air_monitoring_2);
+  appContainer.Add(appContainer_air_localization);
+
+  //Verification of packet interval per node
+  /*for (ApplicationContainer::Iterator j = appContainer.Begin (); j != appContainer.End (); ++j){
+    Ptr<Application> app = *j;
+    Ptr<Node> node = app->GetNode();
+    Ptr<PeriodicSender> t = app->GetObject<PeriodicSender>();
+    cout << "Nó "<< node->GetId() << ": " << t->GetInterval().GetHours() << " Horas\n"; 
+  }*/
+
 
   // make simulation result random
   Ptr<RandomVariableStream> rv = CreateObjectWithAttributes<UniformRandomVariable> (
       "Min", DoubleValue (0), "Max", DoubleValue (10));
 
-  ApplicationContainer appContainer = appHelper.Install (endDevices);
 
   // Start simulation
   appContainer.Start (Seconds (0));
   Simulator::Stop (appStopTime);
   Simulator::Schedule(Seconds(0.00), &GetDevicePositionsPerSF, endDevices, gateways, delay, 3.0); // seconds
-  Simulator::Schedule(Hours(0.00), &GetEnergyRemaining, sources, 1); // hour
 
   Simulator::Run ();
   Simulator::Destroy ();
@@ -700,7 +737,6 @@ int main (int argc, char *argv[])
       net_result_file = "net_results.txt";
       delay_result_file = "delay_results.txt";
       phy_result_file = "phy_results.txt";
-      energy_result_file = "energy_results.txt"; 
 
       for(int n = 0; n < nSimulationRepeat; n++){
         // generate a different seed for each simulation 
