@@ -18,4 +18,4 @@ $ ./waf --run "simulation-many-lorawan-applications --simu_repeat=10 --channel_m
 Parameters:
 - **simu_repeat**: number of simulation repeat
 - **channel_model**: channel propagation model
-- **n_devices_without_dataset**: number of nodes without dataset. This number of nodes is apply for all applications that does not have dataset.
+- **n_devices_without_dataset**: This number set how many nodes will be used by each applications that does not have dataset.
