@@ -1,7 +1,4 @@
-# INFO
-Various codes, files and datasets for LoRa/LoRaWAN Simulations.
-
-## Repo organization
+# smart-campus-applications
 
 ``` bash
 .
