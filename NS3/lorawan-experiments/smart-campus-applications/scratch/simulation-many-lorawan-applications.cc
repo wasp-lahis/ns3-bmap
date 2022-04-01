@@ -541,11 +541,11 @@ LoraPacketTracker& runSimulation(){
   //  - air_monitoring_2:
   //  - indoor/outdoor localization:
   PeriodicSenderHelper appHelper_battery = PeriodicSenderHelper ();
-  appHelper_battery.SetPeriod (Hours(1));
+  appHelper_battery.SetPeriod (Hours(24));
   appHelper_battery.SetPacketSize (5); // bytes
 
   PeriodicSenderHelper appHelper_container = PeriodicSenderHelper ();
-  appHelper_container.SetPeriod (Hours(2));
+  appHelper_container.SetPeriod (Hours(12));
   appHelper_container.SetPacketSize (31);
 
   PeriodicSenderHelper appHelper_air_monitoring = PeriodicSenderHelper ();
