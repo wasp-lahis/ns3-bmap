@@ -29,7 +29,7 @@
 
 
 /* -----------------------------------------------------------------------------
-*			HEADERS
+*     HEADERS
 * ------------------------------------------------------------------------------
 */
 
@@ -97,6 +97,12 @@ struct unicamp_conteiner_bins{ // armazenará dataset de conteiners n reciclavei
     double z;
 };
 
+struct unicamp_smart_meters{ // armazenará dataset de conteiners n reciclaveis
+    double x;
+    double y;
+    double z;
+};
+
 // Instantiate of data structures
 uint8_t SF_QTD = 6; // AU 915 MHz and EU 868 MHz
 
@@ -110,6 +116,7 @@ vector<double> distances;
 // dataset structs
 vector<unicamp_battery_bins> unicamp_battery_bins_dataset;
 vector<unicamp_conteiner_bins> unicamp_conteiner_bins_dataset;
+vector<unicamp_smart_meters> unicamp_smart_meters_dataset;
 
 // Channel model
 std::string channel_model = "";
@@ -125,15 +132,16 @@ double regionalFrequency = 915e6; // frequency band AU 915 MHz
 
 // Simulation settings
 int nSimulationRepeat = 0;
-Time simulationTime = Hours(1); // 1 dia
+Time simulationTime = Hours(24); // 1 dia
 
 // Input dataset file names
 string nodes_battery_dataset = "coletores_pos_dataset_elev.csv"; //  Nodes positions dataset
 string nodes_conteiner_dataset = "conteiners_dataset.csv"; //  Nodes positions dataset
+string nodes_smart_meter_dataset = "medidores_inteligentes_dataset.csv"; //  Nodes positions dataset
 
 // Output file names
 string exp_name = ""; // experiment name
-string output_results_path = "./50/"; // results folder
+string output_results_path = "./simulation_results/"; // results folder
 string rssi_result_file = ""; // rssi results
 string net_position_file = ""; // device position by SF results
 string net_result_file = ""; // network metrics file (pdr e per)
@@ -144,7 +152,7 @@ long double count_send_pkts = 0.;
 long double count_receiv_pkts = 0.;
 
 /* -----------------------------------------------------------------------------
-*			MAIN
+*     MAIN
 * ------------------------------------------------------------------------------
 */
 
@@ -366,6 +374,52 @@ void read_conteiner_bin_dataset(const std::string &filepath){
     
 }
 
+void read_smart_meter_dataset(const std::string &filepath){
+
+  CsvReader csv (filepath);
+
+  while (csv.FetchNextRow ()) {
+      // Ignore blank lines
+      if (csv.IsBlankRow ()){
+          cout << "Blank Line!" << endl;
+          continue;
+      }
+
+      // colunms: id, name, x, y, z e elevation
+      string name;
+      double x, y, z;
+      
+      bool ok = csv.GetValue (0, x);
+      ok |= csv.GetValue (1, y);
+      ok |= csv.GetValue (2, z);
+      
+      if (!ok) {
+        // Handle error, then
+        // cout << "Read Line Error!" << endl;
+        continue;
+      }
+      else {
+        unicamp_smart_meters_dataset.push_back({
+          x,  
+          y,  
+          z
+        });
+      }
+    }  // while FetchNextRow
+    
+    // delete first row
+    // unicamp_conteiner_bins_dataset.erase(unicamp_conteiner_bins_dataset.begin());
+    
+    // Show info
+    // int aux = 0;
+    // cout << "Total Rows: "<< unicamp_smart_meters_dataset.size() << endl;
+    // for ( vector<unicamp_smart_meters>::iterator i = unicamp_smart_meters_dataset.begin(); i!= unicamp_smart_meters_dataset.end(); ++i){
+    //       cout << i->x << ", " << i->y << ", " << i->z << std::endl;
+    //       aux++;
+    // }
+    
+}
+
 // Simulation Code
 LoraPacketTracker& runSimulation(){
 
@@ -377,8 +431,8 @@ LoraPacketTracker& runSimulation(){
 
   if (channel_model == "log-distance"){
     logDistLoss = CreateObject<LogDistancePropagationLossModel> ();
-    logDistLoss->SetPathLossExponent (3.28128); // 915 Mhz, h = (1.5 + 43.41880713641183) = 44.92, R=1m
-    logDistLoss->SetReference (1.0, 14.0116);
+    logDistLoss->SetPathLossExponent (3.76); // 915 Mhz, h = (1.5 + 43.41880713641183) = 44.92, R=1m
+    logDistLoss->SetReference (1.0,7.7);
     final_loss = logDistLoss;
   }
   else if (channel_model == "correlated-shadowing"){
@@ -431,6 +485,9 @@ LoraPacketTracker& runSimulation(){
   for ( vector<unicamp_conteiner_bins>::iterator i = unicamp_conteiner_bins_dataset.begin(); i!= unicamp_conteiner_bins_dataset.end(); ++i){
     allocator->Add (Vector (i->x, i->y, (i->z)));
   }
+  for ( vector<unicamp_smart_meters>::iterator i = unicamp_smart_meters_dataset.begin(); i!= unicamp_smart_meters_dataset.end(); ++i){
+    allocator->Add (Vector (i->x, i->y, (i->z)));
+  }
   
   // Positioning nodes that does not have a dataset
   // o mapa da Unicamp Normalizado tem ~2508x2439 metros
@@ -444,7 +501,7 @@ LoraPacketTracker& runSimulation(){
   int num_nodes_from_datasets = allocator->GetSize();
   // nDevices_w_dataset * 3 -> 3 applications
   // Total of extra nodes: nDevices_w_dataset * 3
-  for(int i = num_nodes_from_datasets; i < (num_nodes_from_datasets + nDevices_without_dataset * 3); i++ ){
+  for(int i = num_nodes_from_datasets; i < (num_nodes_from_datasets + nDevices_without_dataset * 2); i++ ){
       allocator->Add (Vector (random_x->GetValue(), random_y->GetValue(), 1.5));
   }
   
@@ -476,7 +533,7 @@ LoraPacketTracker& runSimulation(){
   gateways.Create (nGateways);
   Ptr<ListPositionAllocator> positionAllocGw = CreateObject<ListPositionAllocator> ();
   // Posição do Museu da Unicamp
-  positionAllocGw->Add (Vector (1694.975, 2141.471, 1.0 ));    // z - altura antena + (elevacao museu - elevacao do mapa)
+  positionAllocGw->Add (Vector (1694.975, 2141.471, (1.5 + 43.41880713641183) ));    // z - altura antena + (elevacao museu - elevacao do mapa)
   mobility.SetPositionAllocator (positionAllocGw);
   mobility.Install(gateways);
 
@@ -548,8 +605,8 @@ LoraPacketTracker& runSimulation(){
   // ---- Creation of packet intervals and payload sizes for each type of node application:
   //  - batteries: 
   //  - containers: 
+  //  - smart meters:
   //  - air_monitoring:
-  //  - air_monitoring_2:
   //  - indoor/outdoor localization:
   PeriodicSenderHelper appHelper_battery = PeriodicSenderHelper ();
   appHelper_battery.SetPeriod (Hours(24));
@@ -559,13 +616,13 @@ LoraPacketTracker& runSimulation(){
   appHelper_container.SetPeriod (Hours(12));
   appHelper_container.SetPacketSize (31);
 
-  PeriodicSenderHelper appHelper_air_monitoring = PeriodicSenderHelper ();
-  appHelper_air_monitoring.SetPeriod (Seconds(72));
-  appHelper_air_monitoring.SetPacketSize (31);
+  PeriodicSenderHelper appHelper_smart_meter = PeriodicSenderHelper ();
+  appHelper_container.SetPeriod (Minutes(15));
+  appHelper_container.SetPacketSize (25); // mudar dps
 
-  PeriodicSenderHelper appHelper_air_monitoring_2 = PeriodicSenderHelper ();
-  appHelper_air_monitoring_2.SetPeriod (Seconds(10));
-  appHelper_air_monitoring_2.SetPacketSize (31);
+  PeriodicSenderHelper appHelper_air_monitoring = PeriodicSenderHelper ();
+  appHelper_air_monitoring.SetPeriod (Seconds(10));
+  appHelper_air_monitoring.SetPacketSize (20);
 
   PeriodicSenderHelper appHelper_localization = PeriodicSenderHelper ();
   appHelper_localization.SetPeriod (Seconds(60));
@@ -575,13 +632,13 @@ LoraPacketTracker& runSimulation(){
   // Separation of nodes into:
   //  - baterry type
   //  - container type
-  //  - air monitoring type
+  //  - smart meter type
   //  - air monitoring type
   //  - indoor/outdoor localization type
   NodeContainer endDevices_pilhas;
   NodeContainer endDevices_conteiners;
+  NodeContainer endDevices_smart_meter;
   NodeContainer endDevices_air_monitoring;
-  NodeContainer endDevices_air_monitoring_2;
   NodeContainer endDevices_localization;
   
   int size_max = int(unicamp_battery_bins_dataset.size());
@@ -592,40 +649,40 @@ LoraPacketTracker& runSimulation(){
     endDevices_conteiners.Add(endDevices.Get(i));
   }
   size_max = size_max + int(unicamp_conteiner_bins_dataset.size());
+  for(int i = size_max; i < (size_max + int(unicamp_smart_meters_dataset.size())); i++){
+    endDevices_smart_meter.Add(endDevices.Get(i));
+  }
+  size_max = size_max + int(unicamp_smart_meters_dataset.size());
   for(int i = size_max; i < (size_max + nDevices_without_dataset); i++){
     endDevices_air_monitoring.Add(endDevices.Get(i));
   }
   size_max = size_max + nDevices_without_dataset;
   for(int i = size_max; i < (size_max + nDevices_without_dataset); i++){
-    endDevices_air_monitoring_2.Add(endDevices.Get(i));
-  }
-  size_max = size_max + nDevices_without_dataset;
-  for(int i = size_max; i < (size_max + nDevices_without_dataset); i++){
     endDevices_localization.Add(endDevices.Get(i));
   }
-  cout << "[INFO] Size max: " << size_max + nDevices_without_dataset << endl ;
+  cout << "\n[INFO] Size max: " << size_max + nDevices_without_dataset << "\n" << endl ;
 
 
   // Creating follow applications:
   //  - baterry type
   //  - container type
-  //  - air monitoring type
+  //  - smart meter type
   //  - air monitoring type
   //  - indoor/outdoor localization type
 
   ApplicationContainer appContainer_battery = appHelper_battery.Install (endDevices_pilhas);
   ApplicationContainer appContainer_container = appHelper_container.Install (endDevices_conteiners);
+  ApplicationContainer appContainer_smart_meter = appHelper_container.Install (endDevices_smart_meter);
   ApplicationContainer appContainer_air_monitoring = appHelper_air_monitoring.Install (endDevices_air_monitoring);
-  ApplicationContainer appContainer_air_monitoring_2 = appHelper_air_monitoring_2.Install (endDevices_air_monitoring_2);
-  ApplicationContainer appContainer_air_localization = appHelper_localization.Install (endDevices_localization);
+  ApplicationContainer appContainer_localization = appHelper_localization.Install (endDevices_localization);
   
   //Addition of application subgroups in the final application of the simulation 
   ApplicationContainer appContainer;
   appContainer.Add(appContainer_battery);
   appContainer.Add(appContainer_container);
+  appContainer.Add(appContainer_smart_meter);
   appContainer.Add(appContainer_air_monitoring);
-  appContainer.Add(appContainer_air_monitoring_2);
-  appContainer.Add(appContainer_air_localization);
+  appContainer.Add(appContainer_localization);
 
   //Verification of packet interval per node
   /*for (ApplicationContainer::Iterator j = appContainer.Begin (); j != appContainer.End (); ++j){
@@ -761,19 +818,23 @@ int main (int argc, char *argv[])
         // Load node datasets  
         read_battery_bin_dataset(nodes_battery_dataset); 
         read_conteiner_bin_dataset(nodes_conteiner_dataset);
-        nDevices = unicamp_battery_bins_dataset.size() + unicamp_conteiner_bins_dataset.size();
-        nDevices = nDevices + nDevices_without_dataset * 3;
+        read_smart_meter_dataset(nodes_smart_meter_dataset);
+        nDevices = unicamp_battery_bins_dataset.size() 
+         + unicamp_conteiner_bins_dataset.size()
+         + unicamp_smart_meters_dataset.size();
+
+        nDevices = nDevices + nDevices_without_dataset * 2;
         // Multiplicado por 3, pois são 3 aplicações sem dataset e 
         // cada uma delas terá a qtd de nodes setada pela flag 'n_devices_w_dataset'. As aplicações sao:
-        //    - Monitoramento de ar
         //    - Monitoramento de ar
         //    - Indoor e outdoor application
 
 
-        cout << "[INFO] unicamp_battery_bins_dataset:" << unicamp_battery_bins_dataset.size() << endl;
-        cout << "[INFO] unicamp_conteiner_bins_dataset:" << unicamp_conteiner_bins_dataset.size() << endl;
-        cout << "[INFO] number of devices without dataset:" << nDevices_without_dataset << endl;
-        cout << "[INFO] Total number of devices:" << nDevices << endl;
+        cout << "\n[INFO] unicamp_battery_bins_dataset: " << unicamp_battery_bins_dataset.size() << endl;
+        cout << "[INFO] unicamp_conteiner_bins_dataset: " << unicamp_conteiner_bins_dataset.size() << endl;
+        cout << "[INFO] unicamp_smart_meter_dataset: " << unicamp_smart_meters_dataset.size() << endl;
+        cout << "[INFO] number of devices without dataset: " << nDevices_without_dataset << endl;
+        cout << "[INFO] Total number of devices: " << nDevices << endl;
      
         initialize_structs(); // Structs Inicialization
         LoraPacketTracker& tracker = runSimulation(); // run simulation
