@@ -125,7 +125,7 @@ double regionalFrequency = 915e6; // frequency band AU 915 MHz
 
 // Simulation settings
 int nSimulationRepeat = 0;
-Time simulationTime = Hours(24); // 1 dia
+Time simulationTime = Hours(1); // 1 dia
 
 // Input dataset file names
 string nodes_battery_dataset = "coletores_pos_dataset_elev.csv"; //  Nodes positions dataset
@@ -133,7 +133,7 @@ string nodes_conteiner_dataset = "conteiners_dataset.csv"; //  Nodes positions d
 
 // Output file names
 string exp_name = ""; // experiment name
-string output_results_path = "./simulation_results/"; // results folder
+string output_results_path = "./50/"; // results folder
 string rssi_result_file = ""; // rssi results
 string net_position_file = ""; // device position by SF results
 string net_result_file = ""; // network metrics file (pdr e per)
@@ -400,6 +400,17 @@ LoraPacketTracker& runSimulation(){
     okumuraLoss->SetAttribute("CitySize", EnumValue (SmallCity));
     final_loss = okumuraLoss;
   }
+  else if (channel_model == "okumura&nakagami"){
+    Ptr<NakagamiPropagationLossModel> nakagami = CreateObject<NakagamiPropagationLossModel>();
+    nakagami->SetAttribute("m0", DoubleValue(1));
+    nakagami->SetAttribute("m1",DoubleValue(1));
+    nakagami->SetAttribute("m2",DoubleValue(1));
+    Ptr<OkumuraHataPropagationLossModel> loss = CreateObject<OkumuraHataPropagationLossModel>();
+    loss->SetAttribute("Frequency",DoubleValue(915e6));
+    loss->SetNext(nakagami);
+    loss->Initialize();
+    final_loss = loss;
+  }
 
   // Create channel
   Ptr<PropagationDelayModel> delay = CreateObject<ConstantSpeedPropagationDelayModel> ();
@@ -465,7 +476,7 @@ LoraPacketTracker& runSimulation(){
   gateways.Create (nGateways);
   Ptr<ListPositionAllocator> positionAllocGw = CreateObject<ListPositionAllocator> ();
   // Posição do Museu da Unicamp
-  positionAllocGw->Add (Vector (1694.975, 2141.471, (1.5 + 43.41880713641183) ));    // z - altura antena + (elevacao museu - elevacao do mapa)
+  positionAllocGw->Add (Vector (1694.975, 2141.471, 1.0 ));    // z - altura antena + (elevacao museu - elevacao do mapa)
   mobility.SetPositionAllocator (positionAllocGw);
   mobility.Install(gateways);
 
