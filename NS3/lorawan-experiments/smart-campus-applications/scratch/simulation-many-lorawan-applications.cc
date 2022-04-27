@@ -24,7 +24,7 @@
  * RUN example:
  * $ cd NS3_BASE_DIR
  * $ conda activate ns3-buildings
- * $ ./waf --run "simulation-many-lorawan-applications --simu_repeat=10 --channel_model=log-distance --n_devices_without_dataset=10"
+ * $ ./waf --run "simulation-many-lorawan-applications --simu_repeat=10 --channel_model=log-distance --n_devices_without_dataset=0"
  */
 
 
@@ -431,20 +431,32 @@ LoraPacketTracker& runSimulation(){
 
   if (channel_model == "log-distance"){
     logDistLoss = CreateObject<LogDistancePropagationLossModel> ();
-    logDistLoss->SetPathLossExponent (3.76); // 915 Mhz, h = (1.5 + 43.41880713641183) = 44.92, R=1m
-    logDistLoss->SetReference (1.0,7.7);
+    
+    // com elevação h = (1.5 + 43.41880713641183) = 44.92, f=915 Mhz, R=1m
+    // logDistLoss->SetPathLossExponent (3.28128);
+    // logDistLoss->SetReference (1.0, 14.0116);
+
+    // sem elevação h= 1.5, f= 915, R=1m
+    logDistLoss->SetPathLossExponent (3.976); 
+    logDistLoss->SetReference (1.0, 19.7402);
+
     final_loss = logDistLoss;
   }
   else if (channel_model == "correlated-shadowing"){
     logDistLoss = CreateObject<LogDistancePropagationLossModel> ();
-    logDistLoss->SetPathLossExponent (3.28128); // 915 Mhz, h = (1.5 + 43.41880713641183) = 44.92, R=1m
-    logDistLoss->SetReference (1.0, 14.0116);
+    
+    // com elevação h = (1.5 + 43.41880713641183) = 44.92, f=915 Mhz, R=1m
+    // logDistLoss->SetPathLossExponent (3.28128);
+    // logDistLoss->SetReference (1.0, 14.0116);
+
+    // sem elevação h= 1.5, f= 915MHz,  R=1m
+    logDistLoss->SetPathLossExponent (3.976); 
+    logDistLoss->SetReference (1.0, 19.7402);
 
     // Create the correlated shadowing component
     shadowing = CreateObject<CorrelatedShadowingPropagationLossModel> ();
-    // Aggregate shadowing to the logdistance loss
-    logDistLoss->SetNext (shadowing);
-
+    // shadowing->SetAttribute("CorrelationDistance",  DoubleValue(25.0));
+    logDistLoss->SetNext (shadowing); // Aggregate shadowing to the logdistance loss
     final_loss = logDistLoss;
   }
   else if (channel_model == "okumura"){
@@ -460,7 +472,7 @@ LoraPacketTracker& runSimulation(){
     nakagami->SetAttribute("m1",DoubleValue(1));
     nakagami->SetAttribute("m2",DoubleValue(1));
     Ptr<OkumuraHataPropagationLossModel> loss = CreateObject<OkumuraHataPropagationLossModel>();
-    loss->SetAttribute("Frequency",DoubleValue(915e6));
+    loss->SetAttribute("Frequency",DoubleValue(regionalFrequency));
     loss->SetNext(nakagami);
     loss->Initialize();
     final_loss = loss;
@@ -498,12 +510,13 @@ LoraPacketTracker& runSimulation(){
   random_y->SetAttribute("Min", DoubleValue(0));
   random_y->SetAttribute("Max", DoubleValue(2440));
 
-  int num_nodes_from_datasets = allocator->GetSize();
-  // nDevices_w_dataset * 3 -> 3 applications
-  // Total of extra nodes: nDevices_w_dataset * 3
-  for(int i = num_nodes_from_datasets; i < (num_nodes_from_datasets + nDevices_without_dataset * 2); i++ ){
-      allocator->Add (Vector (random_x->GetValue(), random_y->GetValue(), 1.5));
-  }
+  
+  // nDevices_w_dataset * 2 -> 2 applications
+  // Total of extra nodes: nDevices_w_dataset * 2
+  // int num_nodes_from_datasets = allocator->GetSize();
+  // for(int i = num_nodes_from_datasets; i < (num_nodes_from_datasets + nDevices_without_dataset * 2); i++ ){
+  //     allocator->Add (Vector (random_x->GetValue(), random_y->GetValue(), 1.5));
+  // }
   
   cout << "[INFO] Number of Position Allocated: " << allocator->GetSize() << endl;
 
@@ -514,14 +527,6 @@ LoraPacketTracker& runSimulation(){
   NodeContainer endDevices;
   endDevices.Create (nDevices);
   mobility.Install (endDevices);
-
-  // Make it so that nodes are at a certain height > 0
-  for (NodeContainer::Iterator j = endDevices.Begin (); j != endDevices.End (); ++j){
-      Ptr<MobilityModel> m = (*j)->GetObject<MobilityModel> ();
-      Vector position = m->GetPosition ();
-      position.z = 1.5;
-      m->SetPosition (position);
-  }
 
   phyHelper.SetDeviceType (LoraPhyHelper::ED);
   macHelper.SetDeviceType (LorawanMacHelper::ED_A);
@@ -534,6 +539,7 @@ LoraPacketTracker& runSimulation(){
   Ptr<ListPositionAllocator> positionAllocGw = CreateObject<ListPositionAllocator> ();
   // Posição do Museu da Unicamp
   positionAllocGw->Add (Vector (1694.975, 2141.471, (1.5 + 43.41880713641183) ));    // z - altura antena + (elevacao museu - elevacao do mapa)
+  // positionAllocGw->Add (Vector (1694.975, 2141.471, 1.5 ));
   mobility.SetPositionAllocator (positionAllocGw);
   mobility.Install(gateways);
 
@@ -620,13 +626,13 @@ LoraPacketTracker& runSimulation(){
   appHelper_container.SetPeriod (Minutes(15));
   appHelper_container.SetPacketSize (25); // mudar dps
 
-  PeriodicSenderHelper appHelper_air_monitoring = PeriodicSenderHelper ();
-  appHelper_air_monitoring.SetPeriod (Seconds(10));
-  appHelper_air_monitoring.SetPacketSize (20);
+  // PeriodicSenderHelper appHelper_air_monitoring = PeriodicSenderHelper ();
+  // appHelper_air_monitoring.SetPeriod (Seconds(10));
+  // appHelper_air_monitoring.SetPacketSize (20);
 
-  PeriodicSenderHelper appHelper_localization = PeriodicSenderHelper ();
-  appHelper_localization.SetPeriod (Seconds(60));
-  appHelper_localization.SetPacketSize (32);
+  // PeriodicSenderHelper appHelper_localization = PeriodicSenderHelper ();
+  // appHelper_localization.SetPeriod (Seconds(60));
+  // appHelper_localization.SetPacketSize (32);
   // ----
 
   // Separation of nodes into:
@@ -653,14 +659,16 @@ LoraPacketTracker& runSimulation(){
     endDevices_smart_meter.Add(endDevices.Get(i));
   }
   size_max = size_max + int(unicamp_smart_meters_dataset.size());
-  for(int i = size_max; i < (size_max + nDevices_without_dataset); i++){
-    endDevices_air_monitoring.Add(endDevices.Get(i));
-  }
-  size_max = size_max + nDevices_without_dataset;
-  for(int i = size_max; i < (size_max + nDevices_without_dataset); i++){
-    endDevices_localization.Add(endDevices.Get(i));
-  }
-  cout << "\n[INFO] Size max: " << size_max + nDevices_without_dataset << "\n" << endl ;
+  cout << "\n[INFO] Size max: " << size_max << "\n" << endl ;
+
+  // for(int i = size_max; i < (size_max + nDevices_without_dataset); i++){
+  //   endDevices_air_monitoring.Add(endDevices.Get(i));
+  // }
+  // size_max = size_max + nDevices_without_dataset;
+  // for(int i = size_max; i < (size_max + nDevices_without_dataset); i++){
+  //   endDevices_localization.Add(endDevices.Get(i));
+  // }
+  // cout << "\n[INFO] Size max: " << size_max + nDevices_without_dataset << "\n" << endl ;
 
 
   // Creating follow applications:
@@ -673,16 +681,16 @@ LoraPacketTracker& runSimulation(){
   ApplicationContainer appContainer_battery = appHelper_battery.Install (endDevices_pilhas);
   ApplicationContainer appContainer_container = appHelper_container.Install (endDevices_conteiners);
   ApplicationContainer appContainer_smart_meter = appHelper_container.Install (endDevices_smart_meter);
-  ApplicationContainer appContainer_air_monitoring = appHelper_air_monitoring.Install (endDevices_air_monitoring);
-  ApplicationContainer appContainer_localization = appHelper_localization.Install (endDevices_localization);
+  // ApplicationContainer appContainer_air_monitoring = appHelper_air_monitoring.Install (endDevices_air_monitoring);
+  // ApplicationContainer appContainer_localization = appHelper_localization.Install (endDevices_localization);
   
   //Addition of application subgroups in the final application of the simulation 
   ApplicationContainer appContainer;
   appContainer.Add(appContainer_battery);
   appContainer.Add(appContainer_container);
   appContainer.Add(appContainer_smart_meter);
-  appContainer.Add(appContainer_air_monitoring);
-  appContainer.Add(appContainer_localization);
+  // appContainer.Add(appContainer_air_monitoring);
+  // appContainer.Add(appContainer_localization);
 
   //Verification of packet interval per node
   /*for (ApplicationContainer::Iterator j = appContainer.Begin (); j != appContainer.End (); ++j){
@@ -823,8 +831,8 @@ int main (int argc, char *argv[])
          + unicamp_conteiner_bins_dataset.size()
          + unicamp_smart_meters_dataset.size();
 
-        nDevices = nDevices + nDevices_without_dataset * 2;
-        // Multiplicado por 3, pois são 3 aplicações sem dataset e 
+        // nDevices = nDevices + nDevices_without_dataset * 2;
+        // Multiplicado por 2, pois são 2 aplicações sem dataset e 
         // cada uma delas terá a qtd de nodes setada pela flag 'n_devices_w_dataset'. As aplicações sao:
         //    - Monitoramento de ar
         //    - Indoor e outdoor application

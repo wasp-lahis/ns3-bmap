@@ -1,5 +1,5 @@
 # ns3-bmap
-Various codes, files and datasets for LoRa/LoRaWAN Simulations.
+This repository contains many LoRa/LoRaWAN Simulations.
 
 ## Repo organization
 
