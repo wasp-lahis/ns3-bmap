@@ -538,8 +538,8 @@ LoraPacketTracker& runSimulation(){
   gateways.Create (nGateways);
   Ptr<ListPositionAllocator> positionAllocGw = CreateObject<ListPositionAllocator> ();
   // Posição do Museu da Unicamp
-  positionAllocGw->Add (Vector (1694.975, 2141.471, (1.5 + 43.41880713641183) ));    // z - altura antena + (elevacao museu - elevacao do mapa)
-  // positionAllocGw->Add (Vector (1694.975, 2141.471, 1.5 ));
+  // positionAllocGw->Add (Vector (1694.975, 2141.471, (1.5 + 43.41880713641183) ));    // z - altura antena + (elevacao museu - elevacao do mapa)
+  positionAllocGw->Add (Vector (1694.975, 2141.471, 1.5 ));
   mobility.SetPositionAllocator (positionAllocGw);
   mobility.Install(gateways);
 
