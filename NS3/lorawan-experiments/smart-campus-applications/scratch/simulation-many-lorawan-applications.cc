@@ -433,12 +433,12 @@ LoraPacketTracker& runSimulation(){
     logDistLoss = CreateObject<LogDistancePropagationLossModel> ();
     
     // com elevação h = (1.5 + 43.41880713641183) = 44.92, f=915 Mhz, R=1m
-    // logDistLoss->SetPathLossExponent (3.28128);
-    // logDistLoss->SetReference (1.0, 14.0116);
+    logDistLoss->SetPathLossExponent (3.28128);
+    logDistLoss->SetReference (1.0, 14.0116);
 
     // sem elevação h= 1.5, f= 915, R=1m
-    logDistLoss->SetPathLossExponent (3.976); 
-    logDistLoss->SetReference (1.0, 19.7402);
+    // logDistLoss->SetPathLossExponent (3.976); 
+    // logDistLoss->SetReference (1.0, 19.7402);
 
     final_loss = logDistLoss;
   }
@@ -446,12 +446,12 @@ LoraPacketTracker& runSimulation(){
     logDistLoss = CreateObject<LogDistancePropagationLossModel> ();
     
     // com elevação h = (1.5 + 43.41880713641183) = 44.92, f=915 Mhz, R=1m
-    // logDistLoss->SetPathLossExponent (3.28128);
-    // logDistLoss->SetReference (1.0, 14.0116);
+    logDistLoss->SetPathLossExponent (3.28128);
+    logDistLoss->SetReference (1.0, 14.0116);
 
     // sem elevação h= 1.5, f= 915MHz,  R=1m
-    logDistLoss->SetPathLossExponent (3.976); 
-    logDistLoss->SetReference (1.0, 19.7402);
+    // logDistLoss->SetPathLossExponent (3.976); 
+    // logDistLoss->SetReference (1.0, 19.7402);
 
     // Create the correlated shadowing component
     shadowing = CreateObject<CorrelatedShadowingPropagationLossModel> ();
@@ -538,8 +538,8 @@ LoraPacketTracker& runSimulation(){
   gateways.Create (nGateways);
   Ptr<ListPositionAllocator> positionAllocGw = CreateObject<ListPositionAllocator> ();
   // Posição do Museu da Unicamp
-  // positionAllocGw->Add (Vector (1694.975, 2141.471, (1.5 + 43.41880713641183) ));    // z - altura antena + (elevacao museu - elevacao do mapa)
-  positionAllocGw->Add (Vector (1694.975, 2141.471, 1.5 ));
+  positionAllocGw->Add (Vector (1694.975, 2141.471, (1.5 + 43.41880713641183) ));    // z - altura antena + (elevacao museu - elevacao do mapa)
+  // positionAllocGw->Add (Vector (1694.975, 2141.471, 1.5 ));
   mobility.SetPositionAllocator (positionAllocGw);
   mobility.Install(gateways);
 
