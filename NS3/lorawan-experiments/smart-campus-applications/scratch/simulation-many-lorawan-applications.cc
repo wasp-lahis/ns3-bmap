@@ -87,20 +87,27 @@ struct unicamp_battery_bins{ // armazenará dataset de coletores de pilhas e bat
     double elevation;
     double lat;
     double lng;
-    double delta; // Elevacao do predio - elevacao media da regiao do mapa
-    double elev_min;
+    double elevation_norm;
 };
 
 struct unicamp_conteiner_bins{ // armazenará dataset de conteiners n reciclaveis
     double x;
     double y;
     double z;
+    double lat;
+    double lng;
+    double elevation;
+    double elevation_norm;
 };
 
 struct unicamp_smart_meters{ // armazenará dataset de conteiners n reciclaveis
     double x;
     double y;
     double z;
+    double lat;
+    double lng;
+    double elevation;
+    double elevation_norm;
 };
 
 // Instantiate of data structures
@@ -132,12 +139,12 @@ double regionalFrequency = 915e6; // frequency band AU 915 MHz
 
 // Simulation settings
 int nSimulationRepeat = 0;
-Time simulationTime = Hours(24); // 1 dia
+Time simulationTime = Hours(24 * 7); // 1 semana
 
 // Input dataset file names
-string nodes_battery_dataset = "coletores_pos_dataset_elev.csv"; //  Nodes positions dataset
-string nodes_conteiner_dataset = "conteiners_dataset.csv"; //  Nodes positions dataset
-string nodes_smart_meter_dataset = "medidores_inteligentes_dataset.csv"; //  Nodes positions dataset
+string nodes_battery_dataset = "coletores_pos_dataset_elev_norm.csv"; //  Nodes positions dataset
+string nodes_conteiner_dataset = "conteiners_dataset_elev_norm.csv"; //  Nodes positions dataset
+string nodes_smart_meter_dataset = "medidores_inteligentes_dataset_elev_norm.csv"; //  Nodes positions dataset
 
 // Output file names
 string exp_name = ""; // experiment name
@@ -281,7 +288,7 @@ void read_battery_bin_dataset(const std::string &filepath){
 
       // colunms: id, name, x, y, z e elevation
       string name;
-      double id, x, y, z, elevation, lat, lng, delta, elev_min;
+      double id, x, y, z, elevation, lat, lng, elevation_norm;
       
       bool ok = csv.GetValue (0, id);
       ok |= csv.GetValue (1, name);
@@ -291,9 +298,8 @@ void read_battery_bin_dataset(const std::string &filepath){
       ok |= csv.GetValue (5, elevation);
       ok |= csv.GetValue (6, lat);
       ok |= csv.GetValue (7, lng);
-      ok |= csv.GetValue (8, delta);
-      ok |= csv.GetValue (9, elev_min);
-      
+      ok |= csv.GetValue (8, elevation_norm);
+     
       if (!ok) {
         // Handle error, then
         // cout << "Read Line Error!" << endl;
@@ -309,8 +315,7 @@ void read_battery_bin_dataset(const std::string &filepath){
           elevation,
           lat,
           lng,
-          delta,
-          elev_min   
+          elevation_norm
         });
       }
     }  // while FetchNextRow
@@ -322,7 +327,10 @@ void read_battery_bin_dataset(const std::string &filepath){
     // int aux = 0;
     // cout << "Total Rows: "<< unicamp_battery_bins_dataset.size() << endl;
     // for ( vector<unicamp_battery_bins>::iterator i = unicamp_battery_bins_dataset.begin(); i!= unicamp_battery_bins_dataset.end(); ++i){
-    //       cout << aux<<", "<<i->id << ", " << i->name << ", " << i->x << ", " << i->y << ", " << i->z << ", " << i->elevation << ", " << i->delta<< ", " << i->elev_min<< std::endl;
+    //       cout << aux <<", "<<i->id << ", " << i->name << ", ";
+    //       cout << i->x << ", " << i->y << ", " << i->z << ", ";
+    //       cout << i->elevation << ", " << i->lat<< ", " << i->lng;
+    //       cout <<  ", " << i->elevation_norm  << std::endl;
     //       aux++;
     // }
     
@@ -341,11 +349,15 @@ void read_conteiner_bin_dataset(const std::string &filepath){
 
       // colunms: id, name, x, y, z e elevation
       string name;
-      double x, y, z;
+      double x, y, z, lat, lng, elevation, elevation_norm;
       
       bool ok = csv.GetValue (0, x);
       ok |= csv.GetValue (1, y);
       ok |= csv.GetValue (2, z);
+      ok |= csv.GetValue (3, lat);
+      ok |= csv.GetValue (4, lng);
+      ok |= csv.GetValue (5, elevation);
+      ok |= csv.GetValue (6, elevation_norm);
       
       if (!ok) {
         // Handle error, then
@@ -356,7 +368,11 @@ void read_conteiner_bin_dataset(const std::string &filepath){
         unicamp_conteiner_bins_dataset.push_back({
           x,  
           y,  
-          z
+          z,
+          lat,
+          lng,
+          elevation,
+          elevation_norm
         });
       }
     }  // while FetchNextRow
@@ -368,7 +384,9 @@ void read_conteiner_bin_dataset(const std::string &filepath){
     // int aux = 0;
     // cout << "Total Rows: "<< unicamp_conteiner_bins_dataset.size() << endl;
     // for ( vector<unicamp_conteiner_bins>::iterator i = unicamp_conteiner_bins_dataset.begin(); i!= unicamp_conteiner_bins_dataset.end(); ++i){
-    //       cout << i->x << ", " << i->y << ", " << i->z << std::endl;
+    //       cout << i->x << ", " << i->y << ", " << i->z << ", ";
+    //       cout << i->lat << ", " << i->lng << ", " << i->elevation;
+    //       cout << ", " << i->elevation_norm << std::endl;
     //       aux++;
     // }
     
@@ -387,11 +405,15 @@ void read_smart_meter_dataset(const std::string &filepath){
 
       // colunms: id, name, x, y, z e elevation
       string name;
-      double x, y, z;
+      double x, y, z, lat, lng, elevation, elevation_norm;
       
       bool ok = csv.GetValue (0, x);
       ok |= csv.GetValue (1, y);
       ok |= csv.GetValue (2, z);
+      ok |= csv.GetValue (3, lat);
+      ok |= csv.GetValue (4, lng);
+      ok |= csv.GetValue (5, elevation);
+      ok |= csv.GetValue (6, elevation_norm);
       
       if (!ok) {
         // Handle error, then
@@ -402,7 +424,11 @@ void read_smart_meter_dataset(const std::string &filepath){
         unicamp_smart_meters_dataset.push_back({
           x,  
           y,  
-          z
+          z,
+          lat,
+          lng,
+          elevation,
+          elevation_norm
         });
       }
     }  // while FetchNextRow
@@ -414,8 +440,10 @@ void read_smart_meter_dataset(const std::string &filepath){
     // int aux = 0;
     // cout << "Total Rows: "<< unicamp_smart_meters_dataset.size() << endl;
     // for ( vector<unicamp_smart_meters>::iterator i = unicamp_smart_meters_dataset.begin(); i!= unicamp_smart_meters_dataset.end(); ++i){
-    //       cout << i->x << ", " << i->y << ", " << i->z << std::endl;
-    //       aux++;
+    //   cout << i->x << ", " << i->y << ", " << i->z << ", ";
+    //   cout << i->lat << ", " << i->lng << ", " << i->elevation;
+    //   cout << ", " << i->elevation_norm << std::endl;
+    //   aux++;
     // }
     
 }
@@ -432,9 +460,13 @@ LoraPacketTracker& runSimulation(){
   if (channel_model == "log-distance"){
     logDistLoss = CreateObject<LogDistancePropagationLossModel> ();
     
+    // com elevação normalizada h = (1.5 + 9.05882353) = 10.5588, f=915 Mhz, R=1m
+    logDistLoss->SetPathLossExponent (3.831);
+    logDistLoss->SetReference (1.0, 8.8347);
+
     // com elevação h = (1.5 + 43.41880713641183) = 44.92, f=915 Mhz, R=1m
-    logDistLoss->SetPathLossExponent (3.28128);
-    logDistLoss->SetReference (1.0, 14.0116);
+    // logDistLoss->SetPathLossExponent (3.28128);
+    // logDistLoss->SetReference (1.0, 14.0116);
 
     // sem elevação h= 1.5, f= 915, R=1m
     // logDistLoss->SetPathLossExponent (3.976); 
@@ -445,9 +477,13 @@ LoraPacketTracker& runSimulation(){
   else if (channel_model == "correlated-shadowing"){
     logDistLoss = CreateObject<LogDistancePropagationLossModel> ();
     
+    // com elevação normalizada h = (1.5 + 9.05882353) = 10.5588, f=915 Mhz, R=1m
+    logDistLoss->SetPathLossExponent (3.831);
+    logDistLoss->SetReference (1.0, 8.8347);
+
     // com elevação h = (1.5 + 43.41880713641183) = 44.92, f=915 Mhz, R=1m
-    logDistLoss->SetPathLossExponent (3.28128);
-    logDistLoss->SetReference (1.0, 14.0116);
+    // logDistLoss->SetPathLossExponent (3.28128);
+    // logDistLoss->SetReference (1.0, 14.0116);
 
     // sem elevação h= 1.5, f= 915MHz,  R=1m
     // logDistLoss->SetPathLossExponent (3.976); 
@@ -455,7 +491,7 @@ LoraPacketTracker& runSimulation(){
 
     // Create the correlated shadowing component
     shadowing = CreateObject<CorrelatedShadowingPropagationLossModel> ();
-    // shadowing->SetAttribute("CorrelationDistance",  DoubleValue(25.0));
+    shadowing->SetAttribute("CorrelationDistance",  DoubleValue(110.0));
     logDistLoss->SetNext (shadowing); // Aggregate shadowing to the logdistance loss
     final_loss = logDistLoss;
   }
@@ -471,11 +507,13 @@ LoraPacketTracker& runSimulation(){
     nakagami->SetAttribute("m0", DoubleValue(1));
     nakagami->SetAttribute("m1",DoubleValue(1));
     nakagami->SetAttribute("m2",DoubleValue(1));
-    Ptr<OkumuraHataPropagationLossModel> loss = CreateObject<OkumuraHataPropagationLossModel>();
-    loss->SetAttribute("Frequency",DoubleValue(regionalFrequency));
-    loss->SetNext(nakagami);
-    loss->Initialize();
-    final_loss = loss;
+    Ptr<OkumuraHataPropagationLossModel> okumuraLoss = CreateObject<OkumuraHataPropagationLossModel>();
+    okumuraLoss->SetAttribute("Frequency",DoubleValue(regionalFrequency));
+    // okumuraLoss->SetAttribute("Environment", EnumValue (SubUrbanEnvironment));
+    // okumuraLoss->SetAttribute("CitySize", EnumValue (SmallCity));
+    okumuraLoss->SetNext(nakagami);
+    okumuraLoss->Initialize();
+    final_loss = okumuraLoss;
   }
 
   // Create channel
@@ -493,12 +531,13 @@ LoraPacketTracker& runSimulation(){
   Ptr<ListPositionAllocator> allocator = CreateObject<ListPositionAllocator> ();
   for ( vector<unicamp_battery_bins>::iterator i = unicamp_battery_bins_dataset.begin(); i!= unicamp_battery_bins_dataset.end(); ++i){
     allocator->Add (Vector (i->x, i->y, (i->z)));
+    // allocator->Add (Vector (i->x, i->y, (i->z + i->elevation_norm)));
   }
   for ( vector<unicamp_conteiner_bins>::iterator i = unicamp_conteiner_bins_dataset.begin(); i!= unicamp_conteiner_bins_dataset.end(); ++i){
-    allocator->Add (Vector (i->x, i->y, (i->z)));
+    allocator->Add (Vector (i->x, i->y, i->z));
   }
   for ( vector<unicamp_smart_meters>::iterator i = unicamp_smart_meters_dataset.begin(); i!= unicamp_smart_meters_dataset.end(); ++i){
-    allocator->Add (Vector (i->x, i->y, (i->z)));
+    allocator->Add (Vector (i->x, i->y, i->z));
   }
   
   // Positioning nodes that does not have a dataset
@@ -537,9 +576,11 @@ LoraPacketTracker& runSimulation(){
   NodeContainer gateways;
   gateways.Create (nGateways);
   Ptr<ListPositionAllocator> positionAllocGw = CreateObject<ListPositionAllocator> ();
+  
   // Posição do Museu da Unicamp
-  positionAllocGw->Add (Vector (1694.975, 2141.471, (1.5 + 43.41880713641183) ));    // z - altura antena + (elevacao museu - elevacao do mapa)
-  // positionAllocGw->Add (Vector (1694.975, 2141.471, 1.5 ));
+  // positionAllocGw->Add (Vector (1694.975, 2141.471, (1.5 + 9.05882353))); // z - altura antena + elevacao museu normalizada
+  // positionAllocGw->Add (Vector (1694.975, 2141.471, (1.5 + 43.41880713641183) ));    // z - altura antena + (elevacao museu - elevacao do mapa)
+  positionAllocGw->Add (Vector (1694.975, 2141.471, 1.5 ));
   mobility.SetPositionAllocator (positionAllocGw);
   mobility.Install(gateways);
 
@@ -615,16 +656,16 @@ LoraPacketTracker& runSimulation(){
   //  - air_monitoring:
   //  - indoor/outdoor localization:
   PeriodicSenderHelper appHelper_battery = PeriodicSenderHelper ();
-  appHelper_battery.SetPeriod (Hours(24));
+  appHelper_battery.SetPeriod (Hours(392)); // 7 dias -> 1176 horas, 1176/3 => 3x na semana
   appHelper_battery.SetPacketSize (5); // bytes
 
   PeriodicSenderHelper appHelper_container = PeriodicSenderHelper ();
-  appHelper_container.SetPeriod (Hours(12));
+  appHelper_container.SetPeriod (Hours(6)); // 4x dia
   appHelper_container.SetPacketSize (31);
 
   PeriodicSenderHelper appHelper_smart_meter = PeriodicSenderHelper ();
   appHelper_container.SetPeriod (Minutes(15));
-  appHelper_container.SetPacketSize (25); // mudar dps
+  appHelper_container.SetPacketSize (49); // 3 correntes, 3 angulos, 3 tensoes, 3 fpotencia, 1 frequencia
 
   // PeriodicSenderHelper appHelper_air_monitoring = PeriodicSenderHelper ();
   // appHelper_air_monitoring.SetPeriod (Seconds(10));
@@ -710,6 +751,7 @@ LoraPacketTracker& runSimulation(){
   appContainer.Start (Seconds (0));
   Simulator::Stop (appStopTime);
   Simulator::Schedule(Seconds(0.00), &GetDevicePositionsPerSF, endDevices, gateways, delay, 3.0); // seconds
+  // Simulator::Schedule(Seconds(0.00), &GetDevicePositionsPerSF, endDevices, gateways, delay, 3.0); // seconds
 
   Simulator::Run ();
   Simulator::Destroy ();
@@ -843,7 +885,7 @@ int main (int argc, char *argv[])
         cout << "[INFO] unicamp_smart_meter_dataset: " << unicamp_smart_meters_dataset.size() << endl;
         cout << "[INFO] number of devices without dataset: " << nDevices_without_dataset << endl;
         cout << "[INFO] Total number of devices: " << nDevices << endl;
-     
+
         initialize_structs(); // Structs Inicialization
         LoraPacketTracker& tracker = runSimulation(); // run simulation
         getSimulationResults(tracker); // calculate results
