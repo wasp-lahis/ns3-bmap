@@ -31,6 +31,8 @@ Medidores Inteligentes:
 Intervalo de envio: 15min
 Tam do payload: 49 bytes 
 Num de nós: 50
+
+TOTAL DE PACOTES ENVIADOS: 220753
 ```
 
 - **02** (Lahis):
