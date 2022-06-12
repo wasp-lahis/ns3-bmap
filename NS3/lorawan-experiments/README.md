@@ -9,7 +9,6 @@
 	- Waste Management (battery)
 	- Waste Management (container)
 	- Air Monitoring 
-	- Air Monitoring 
 	- Indoor and Outdoor Localization
 
 * **_smart-waste-management_**: contains Waste Management lorawan simulations at Unicamp.
