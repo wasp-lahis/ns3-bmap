@@ -43,10 +43,10 @@
 #include "ns3/periodic-sender-helper.h"
 #include <iostream>
 #include <fstream>
-#include <ns3/spectrum-module.h>
+// #include <ns3/spectrum-module.h>
 #include <ns3/okumura-hata-propagation-loss-model.h>
 #include "ns3/correlated-shadowing-propagation-loss-model.h"
-#include "ns3/flow-monitor-helper.h"
+// #include "ns3/flow-monitor-helper.h"
 
 // energy-harvester
 #include "ns3/energy-module.h"
@@ -114,6 +114,7 @@ struct unicamp_smart_meters{ // armazenará dataset de conteiners n reciclaveis
 uint8_t SF_QTD = 6; // AU 915 MHz and EU 868 MHz
 
 vector<device> deviceList;
+vector<device> deviceList_aux;
 vector<spf> spreadFList;
 map <uint64_t, int> pacote_sf;
 map <uint64_t, Time> pacote_ds; // send
@@ -140,7 +141,7 @@ double regionalFrequency = 915e6; // frequency band AU 915 MHz
 // Simulation settings
 int nSimulationRepeat = 0;
 int nSimulation = 0;
-Time simulationTime = Hours(24 * 7); // 1 semana
+Time simulationTime = Hours(24 * 1); // 1 semana
 
 // Input dataset file names
 string nodes_battery_dataset = "coletores_pos_dataset_elev_norm.csv"; //  Nodes positions dataset
@@ -599,12 +600,36 @@ LoraPacketTracker& runSimulation(int numDevices, int numRandomDevices, Ptr<ListP
   helper.Install (phyHelper, macHelper, gateways);
       
   // Set SF automatically based on position and RX power
-  vector<int> sf = macHelper.SetSpreadingFactorsUp (endDevices, gateways, channel_propag);
+  vector<int> sf;
+  if (nSimulation == 0){
+    vector<int> sf_up = macHelper.SetSpreadingFactorsUp (endDevices, gateways, channel_propag);
+    sf = sf_up;
+  }
+  else{
+    std::vector<int> sf_manually (6, 0); // DR0-DR13
+    int sf_result_per_node = 0;
+    // 563 numero total de nodes - dps deixar inteligente
+    for(int i = 0; i < 563; i++){
+      sf_result_per_node = macHelper.SetSpreadingFactorsGivenDistributionManually (endDevices, gateways, i, deviceList_aux[i].SF);
 
+      if (sf_result_per_node == 5) sf_manually[0] = sf_manually[0] + 1;
+      else if (sf_result_per_node == 4) sf_manually[1] = sf_manually[1] + 1;
+      else if (sf_result_per_node == 3) sf_manually[2] = sf_manually[2] + 1;
+      else if (sf_result_per_node == 2) sf_manually[3] = sf_manually[3] + 1;
+      else if (sf_result_per_node == 1) sf_manually[4] = sf_manually[4] + 1;
+      else if (sf_result_per_node == 0) sf_manually[5] = sf_manually[5] + 1;
+    }
+    sf = sf_manually;
+    
+  }
   // Set SF manually based on position and RX power - AU 915 MHz
   // vector<double> distribution(6, 0); // só estou usando do SF7 - SF12
-  // // distribution[0] = 1; // distribution[0] - DR5 - S7
-  // distribution[3] = 1; // distribution[3] - DR2 - S10 = 125khz
+  // distribution[0] = 167; // distribution[0] - DR5 - S7
+  // distribution[1] = 68; // distribution[1] - DR4 - S8
+  // distribution[2] = 86; // distribution[2] - DR3 - S9
+  // distribution[3] = 55; // distribution[3] - DR2 - S10 = 125khz
+  // distribution[4] = 36; // distribution[3] - DR1 - S11 = 125khz
+  // distribution[5] = 68; // distribution[3] - DR0 - S12 = 125khz
   // vector<int> sf = macHelper.SetSpreadingFactorsAuGivenDistribution (endDevices, gateways, distribution);
 
   // Print ED distribution by SF
@@ -661,23 +686,23 @@ LoraPacketTracker& runSimulation(int numDevices, int numRandomDevices, Ptr<ListP
   // ---- Creation of packet intervals and payload sizes for each type of node application:
   //  - batteries, containers, smart meters, air_monitoring, indoor/outdoor, localization
   PeriodicSenderHelper appHelper_battery = PeriodicSenderHelper ();
-  appHelper_battery.SetPeriod (Hours(56)); // 7 dias -> 1176 horas, 1176/3 => 3x na semana
-  // appHelper_battery.SetPeriod (Hours(24)); 
+  // appHelper_battery.SetPeriod (Hours(56)); // 7 dias -> 1176 horas, 1176/3 => 3x na semana
+  appHelper_battery.SetPeriod (Hours(24)); 
   appHelper_battery.SetPacketSize (5); // bytes
 
   PeriodicSenderHelper appHelper_container = PeriodicSenderHelper ();
-  appHelper_container.SetPeriod (Hours(6)); // 4x dia
-  // appHelper_container.SetPeriod (Hours(24)); // 4x dia
+  // appHelper_container.SetPeriod (Hours(6)); // 4x dia
+  appHelper_container.SetPeriod (Hours(24)); // 4x dia
   appHelper_container.SetPacketSize (31);
 
   PeriodicSenderHelper appHelper_smart_meter = PeriodicSenderHelper ();
-  appHelper_smart_meter.SetPeriod (Minutes(15));
-  // appHelper_smart_meter.SetPeriod (Hours(24));
+  // appHelper_smart_meter.SetPeriod (Minutes(15));
+  appHelper_smart_meter.SetPeriod (Hours(24));
   appHelper_smart_meter.SetPacketSize (49); // 3 correntes, 3 angulos, 3 tensoes, 3 fpotencia, 1 frequencia
 
   PeriodicSenderHelper appHelper_air_monitoring = PeriodicSenderHelper ();
-  appHelper_air_monitoring.SetPeriod (Seconds(10));
-  // appHelper_air_monitoring.SetPeriod (Hours(24));
+  // appHelper_air_monitoring.SetPeriod (Seconds(10));
+  appHelper_air_monitoring.SetPeriod (Hours(24));
   appHelper_air_monitoring.SetPacketSize (20);
 
   PeriodicSenderHelper appHelper_localization = PeriodicSenderHelper ();
@@ -754,7 +779,11 @@ LoraPacketTracker& runSimulation(int numDevices, int numRandomDevices, Ptr<ListP
   Simulator::Destroy ();
 
   // Get Device Positionn/SF
-  GetDevicePositionsPerSF(endDevices, gateways);
+  if (nSimulation == 0){
+    GetDevicePositionsPerSF(endDevices, gateways);
+    deviceList_aux = deviceList;
+    cout << "\n+++++++++++++++ oi\n";
+  }
 
   // GET RX POWER - LoRa Coverage
   GetGWRSSI(endDevices, gateways, channel_propag);
