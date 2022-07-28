@@ -117,6 +117,10 @@ public:
                                                                 NodeContainer gateways,
                                                                 std::vector<double> distribution);
 
+static int SetSpreadingFactorsGivenDistributionManually (NodeContainer endDevices,
+                                                                NodeContainer gateways, int id, int SF);
+
+
   /**
    * Set up the end device's data rates according to the given distribution.
    * 

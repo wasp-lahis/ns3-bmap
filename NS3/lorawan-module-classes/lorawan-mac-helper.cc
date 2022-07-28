@@ -908,7 +908,62 @@ LorawanMacHelper::SetSpreadingFactorsAuGivenDistribution (NodeContainer endDevic
 
 } //  end function
 
+int
+LorawanMacHelper::SetSpreadingFactorsGivenDistributionManually (NodeContainer endDevices,
+                                                        NodeContainer gateways, int id, int SF)
+{
+  NS_LOG_FUNCTION_NOARGS ();
 
+  for (NodeContainer::Iterator j = endDevices.Begin (); j != endDevices.End (); ++j)
+  {
+      Ptr<Node> object = *j;
+      Ptr<MobilityModel> position = object->GetObject<MobilityModel> ();
+      NS_ASSERT (position != 0);
+      Ptr<NetDevice> netDevice = object->GetDevice (0);
+      Ptr<LoraNetDevice> loraNetDevice = netDevice->GetObject<LoraNetDevice> ();
+      NS_ASSERT (loraNetDevice != 0);
+      Ptr<ClassAEndDeviceLorawanMac> mac =
+          loraNetDevice->GetMac ()->GetObject<ClassAEndDeviceLorawanMac> ();
+      NS_ASSERT (mac != 0);
 
+      int nodeId = object->GetId();
+
+      if (nodeId == id)
+      {
+        if (SF == 5) // sf7
+        {
+          mac->SetDataRate (5);
+          return 5;
+        }
+        else if (SF == 4)
+          {
+            mac->SetDataRate (4);
+            return 4;
+          }
+        else if (SF == 3)
+          {
+            mac->SetDataRate (3);
+            return 3;
+          }
+        else if (SF == 2)
+          {
+            mac->SetDataRate (2);
+            return 2;
+          }
+        else if (SF == 1)
+          {
+            mac->SetDataRate (1);
+            return 1;
+          }
+        else if (SF == 0)
+          {
+            mac->SetDataRate (0);
+            return 0;
+          }
+      }
+      
+  } // end loop on nodes
+  return -1;
+} //  end function
 } // namespace lorawan
 } // namespace ns3
