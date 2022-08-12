@@ -872,25 +872,25 @@ LorawanMacHelper::SetSpreadingFactorsAuGivenDistribution (NodeContainer endDevic
       // NS_LOG_DEBUG ("Probability: " << prob);
       if (prob < cumdistr[0])
         {
-          mac->SetDataRate (5);
+          mac->SetDataRate (5); //SF7
           sfQuantity[0] = sfQuantity[0] + 1;
         }
       else if (prob > cumdistr[0] && prob < cumdistr[1])
         {
-          mac->SetDataRate (4);
+          mac->SetDataRate (4); //SF8
           sfQuantity[1] = sfQuantity[1] + 1;
         }
       else if (prob > cumdistr[1] && prob < cumdistr[2])
         {
-          mac->SetDataRate (3);
+          mac->SetDataRate (3); //SF9
           sfQuantity[2] = sfQuantity[2] + 1;
         }
-      else if (prob > cumdistr[2] && prob < cumdistr[3])
+      else
         {
-          mac->SetDataRate (2);
+          mac->SetDataRate (2);//SF10
           sfQuantity[3] = sfQuantity[3] + 1;
         }
-      else if (prob > cumdistr[3] && prob < cumdistr[4])
+      /*else if (prob > cumdistr[3] && prob < cumdistr[4])
         {
           mac->SetDataRate (1);
           sfQuantity[4] = sfQuantity[4] + 1;
@@ -899,7 +899,7 @@ LorawanMacHelper::SetSpreadingFactorsAuGivenDistribution (NodeContainer endDevic
         {
           mac->SetDataRate (0);
           sfQuantity[5] = sfQuantity[5] + 1;
-        }
+        }*/
         
 
     } // end loop on nodes
